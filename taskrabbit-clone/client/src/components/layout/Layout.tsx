@@ -238,7 +238,7 @@ function Footer({ path }: { path: string }) {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mb-10">
           <div>
             <div className="flex items-center gap-2 text-white font-bold text-lg mb-4">
-              <Wrench className="w-5 h-5" /> NeighbourWork
+              <Wrench className="w-5 h-5" /> TaskFlow
             </div>
             <p className="text-sm leading-relaxed">Connecting people who need help with skilled, trusted Taskers in their neighbourhood.</p>
           </div>
@@ -277,7 +277,7 @@ function Footer({ path }: { path: string }) {
           </div>
         </div>
         <div className="border-t border-white/10 pt-6 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-blue-300">
-          <p>© {new Date().getFullYear()} NeighbourWork. All rights reserved.</p>
+          <p>© {new Date().getFullYear()} TaskFlow. All rights reserved.</p>
           <div className="flex gap-4">
             <span className="hover:text-white cursor-default">Privacy Policy</span>
             <span className="hover:text-white cursor-default">Terms of Service</span>
@@ -302,7 +302,7 @@ export default function Layout() {
           {/* Logo */}
           <Link to="/" className="flex items-center gap-2 font-bold text-primary-700 text-lg">
             <Wrench className="w-5 h-5" />
-            <span className="hidden sm:block">NeighbourWork</span>
+            <span className="hidden sm:block">TaskFlow</span>
           </Link>
 
           {/* Nav links */}

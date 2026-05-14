@@ -282,7 +282,7 @@ export default function TaskerDashboard() {
 
   return (
     <>
-      <Helmet><title>Tasker Dashboard | NeighbourWork</title></Helmet>
+      <Helmet><title>Tasker Dashboard | TaskFlow</title></Helmet>
 
       <div className="max-w-5xl mx-auto px-4 py-10">
         {/* Header */}

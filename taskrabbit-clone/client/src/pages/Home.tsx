@@ -198,7 +198,7 @@ function HowItWorks() {
     <section className="bg-white py-20 px-4">
       <div className="max-w-5xl mx-auto">
         <div className="text-center mb-14">
-          <h2 className="text-3xl font-bold text-gray-900 mb-3">How NeighbourWork works</h2>
+          <h2 className="text-3xl font-bold text-gray-900 mb-3">How TaskFlow works</h2>
           <p className="text-gray-500">From booking to done — in three simple steps.</p>
         </div>
 
@@ -330,7 +330,7 @@ function WhyUs() {
     <section className="bg-white py-20 px-4">
       <div className="max-w-5xl mx-auto">
         <div className="text-center mb-12">
-          <h2 className="text-3xl font-bold text-gray-900 mb-3">Why people love NeighbourWork</h2>
+          <h2 className="text-3xl font-bold text-gray-900 mb-3">Why people love TaskFlow</h2>
           <p className="text-gray-500">Built around trust, transparency, and quality.</p>
         </div>
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -354,7 +354,7 @@ function WhyUs() {
 // ── Testimonials ──────────────────────────────────────────────────────────────
 
 const TESTIMONIALS = [
-  { name: 'Sarah M.', location: 'New York, NY', avatar: 'S', rating: 5, text: 'My Tasker showed up on time and completely transformed my apartment. Booking took 3 minutes. I use NeighbourWork every month now.' },
+  { name: 'Sarah M.', location: 'New York, NY', avatar: 'S', rating: 5, text: 'My Tasker showed up on time and completely transformed my apartment. Booking took 3 minutes. I use TaskFlow every month now.' },
   { name: 'James T.', location: 'Austin, TX', avatar: 'J', rating: 5, text: 'Found an amazing handyman for my bathroom renovation. Clear pricing, professional work, and the in-app chat made communication seamless.' },
   { name: 'Priya K.', location: 'San Francisco, CA', avatar: 'P', rating: 5, text: 'The background check feature really puts my mind at ease. My Tasker was fantastic and I left a 5-star review without hesitation.' },
 ];
@@ -430,7 +430,7 @@ export default function Home() {
   return (
     <>
       <Helmet>
-        <title>NeighbourWork — Get help from local Taskers</title>
+        <title>TaskFlow — Get help from local Taskers</title>
         <meta name="description" content="Hire background-checked local Taskers for cleaning, moving, handyman work, and more. Book in minutes." />
       </Helmet>
       <Hero />

@@ -187,7 +187,7 @@ export default function Payment() {
 
   return (
     <>
-      <Helmet><title>Complete Payment | NeighbourWork</title></Helmet>
+      <Helmet><title>Complete Payment | TaskFlow</title></Helmet>
 
       <div className="min-h-screen bg-gray-50 py-10 px-4">
         <div className="max-w-lg mx-auto">

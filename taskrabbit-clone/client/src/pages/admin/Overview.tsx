@@ -44,7 +44,7 @@ export default function Overview() {
       <div className="space-y-6">
         <div>
           <h2 className="text-xl font-bold text-gray-900">Platform Overview</h2>
-          <p className="text-sm text-gray-500 mt-0.5">Real-time health and activity across NeighbourWork</p>
+          <p className="text-sm text-gray-500 mt-0.5">Real-time health and activity across TaskFlow</p>
         </div>
 
         {/* Stat cards */}

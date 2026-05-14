@@ -31,7 +31,7 @@ const send = async (to: string, subject: string, html: string): Promise<void> =>
   }
   try {
     await transporter.sendMail({
-      from: `"NeighbourWork" <${env.GMAIL_USER}>`,
+      from: `"TaskFlow" <${env.GMAIL_USER}>`,
       to,
       subject,
       html,
@@ -44,11 +44,11 @@ const send = async (to: string, subject: string, html: string): Promise<void> =>
 const layout = (body: string) => `
   <div style="font-family:Inter,sans-serif;max-width:600px;margin:0 auto;background:#fff;border-radius:8px;overflow:hidden">
     <div style="background:#1D4ED8;padding:24px;text-align:center">
-      <h1 style="color:#fff;margin:0;font-size:24px">NeighbourWork</h1>
+      <h1 style="color:#fff;margin:0;font-size:24px">TaskFlow</h1>
     </div>
     <div style="padding:32px">${body}</div>
     <div style="background:#f9fafb;padding:16px;text-align:center;font-size:12px;color:#6b7280">
-      © ${new Date().getFullYear()} NeighbourWork. All rights reserved.
+      © ${new Date().getFullYear()} TaskFlow. All rights reserved.
     </div>
   </div>`;
 
@@ -57,7 +57,7 @@ export const emailService = {
     const link = `${BASE_URL}/verify-email?token=${token}`;
     await send(
       to,
-      'Verify your email — NeighbourWork',
+      'Verify your email — TaskFlow',
       layout(`
         <h2 style="color:#111827">Welcome! Verify your email</h2>
         <p style="color:#374151">Click the button below to verify your email address.</p>
@@ -71,7 +71,7 @@ export const emailService = {
     const link = `${BASE_URL}/reset-password?token=${token}`;
     await send(
       to,
-      'Reset your password — NeighbourWork',
+      'Reset your password — TaskFlow',
       layout(`
         <h2 style="color:#111827">Reset your password</h2>
         <p style="color:#374151">Click the button below to reset your password.</p>
@@ -84,7 +84,7 @@ export const emailService = {
   async sendBookingConfirmation(to: string, task: Partial<ITask>): Promise<void> {
     await send(
       to,
-      'Booking Confirmed — NeighbourWork',
+      'Booking Confirmed — TaskFlow',
       layout(`
         <h2 style="color:#111827">Your booking is confirmed!</h2>
         <p style="color:#374151"><strong>Task:</strong> ${task.title}</p>

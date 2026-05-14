@@ -215,7 +215,7 @@ export default function AdminSettings() {
                   value={form.contactEmail}
                   onChange={(e) => set('contactEmail', e.target.value)}
                   className="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
-                  placeholder="support@neighbourwork.com"
+                  placeholder="support@taskflow.com"
                 />
                 <p className="text-xs text-gray-400 mt-1">Shown in footer and emails as the main support address</p>
               </div>

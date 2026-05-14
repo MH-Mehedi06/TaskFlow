@@ -141,7 +141,7 @@ export default function TaskerOnboarding() {
 
   return (
     <>
-      <Helmet><title>Tasker Onboarding | NeighbourWork</title></Helmet>
+      <Helmet><title>Tasker Onboarding | TaskFlow</title></Helmet>
 
       <div className="min-h-screen bg-gray-50 py-10 px-4">
         <div className="max-w-2xl mx-auto">
@@ -168,7 +168,7 @@ export default function TaskerOnboarding() {
                 <div className="w-20 h-20 rounded-full bg-primary-100 flex items-center justify-center mx-auto mb-6">
                   <Star className="w-10 h-10 text-primary-700" />
                 </div>
-                <h2 className="text-2xl font-bold text-gray-900 mb-3">Welcome to NeighbourWork!</h2>
+                <h2 className="text-2xl font-bold text-gray-900 mb-3">Welcome to TaskFlow!</h2>
                 <p className="text-gray-500 leading-relaxed mb-6 max-w-md mx-auto">
                   Let's set up your Tasker profile in a few quick steps. This is what clients will see when they browse for help.
                 </p>

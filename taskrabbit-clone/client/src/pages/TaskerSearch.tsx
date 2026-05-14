@@ -177,7 +177,7 @@ export default function TaskerSearch() {
 
   return (
     <>
-      <Helmet><title>Find a Tasker | NeighbourWork</title></Helmet>
+      <Helmet><title>Find a Tasker | TaskFlow</title></Helmet>
 
       {/* Header */}
       <div className="bg-primary-700 text-white py-12 px-4">

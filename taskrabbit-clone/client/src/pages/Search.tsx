@@ -45,7 +45,7 @@ export default function Search() {
 
   return (
     <>
-      <Helmet><title>{query ? `"${query}" — Search` : 'Search'} | NeighbourWork</title></Helmet>
+      <Helmet><title>{query ? `"${query}" — Search` : 'Search'} | TaskFlow</title></Helmet>
 
       {/* Search bar */}
       <div className="bg-primary-700 py-10 px-4">

@@ -42,7 +42,7 @@ export default function Services() {
 
   return (
     <>
-      <Helmet><title>{pageTitle} | NeighbourWork</title></Helmet>
+      <Helmet><title>{pageTitle} | TaskFlow</title></Helmet>
 
       {/* Hero */}
       <div className="bg-primary-700 text-white py-16 px-4">

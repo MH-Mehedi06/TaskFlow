@@ -27,7 +27,7 @@ export default function BecomeTasker() {
 
   return (
     <>
-      <Helmet><title>Become a Tasker | NeighbourWork</title></Helmet>
+      <Helmet><title>Become a Tasker | TaskFlow</title></Helmet>
 
       {/* Hero */}
       <section className="bg-gradient-to-br from-primary-700 to-primary-900 text-white py-24 px-4">

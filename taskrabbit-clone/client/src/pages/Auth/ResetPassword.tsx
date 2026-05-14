@@ -52,7 +52,7 @@ export default function ResetPassword() {
       <div className="min-h-screen bg-gray-50 flex items-center justify-center py-12 px-4">
         <div className="w-full max-w-md">
           <div className="text-center mb-8">
-            <Link to="/" className="text-2xl font-bold text-primary-700">NeighbourWork</Link>
+            <Link to="/" className="text-2xl font-bold text-primary-700">TaskFlow</Link>
             <h1 className="mt-4 text-3xl font-bold text-gray-900">Set new password</h1>
           </div>
 

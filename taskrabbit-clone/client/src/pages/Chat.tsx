@@ -309,7 +309,7 @@ export default function Chat() {
 
   return (
     <>
-      <Helmet><title>Messages | NeighbourWork</title></Helmet>
+      <Helmet><title>Messages | TaskFlow</title></Helmet>
       <div className="h-[calc(100vh-64px)] flex bg-gray-50">
 
         {/* ── Sidebar ─────────────────────────────────────────────────────── */}

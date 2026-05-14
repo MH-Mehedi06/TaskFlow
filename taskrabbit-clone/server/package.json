@@ -1,8 +1,8 @@
 {
-  "name": "neighbourwork-server",
+  "name": "taskflow-server",
   "version": "1.0.0",
   "scripts": {
-    "predev": "fuser -k 5000/tcp 2>/dev/null || true",
+    "predev": "npx kill-port 5000 --silent || exit 0",
     "dev": "nodemon",
     "build": "tsc",
     "start": "node dist/server.js",

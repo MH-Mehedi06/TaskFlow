@@ -124,7 +124,7 @@ export default function ClientDashboard() {
 
   return (
     <>
-      <Helmet><title>My Dashboard | NeighbourWork</title></Helmet>
+      <Helmet><title>My Dashboard | TaskFlow</title></Helmet>
 
       <div className="max-w-6xl mx-auto px-4 py-10">
         {/* Header */}

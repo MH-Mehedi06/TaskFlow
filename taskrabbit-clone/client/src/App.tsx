@@ -35,7 +35,7 @@ const Unauthorized = lazy(() => import('./pages/Unauthorized'));
 export default function App() {
   return (
     <BrowserRouter>
-      <Helmet defaultTitle="NeighbourWork" titleTemplate="%s | NeighbourWork" />
+      <Helmet defaultTitle="TaskFlow" titleTemplate="%s | TaskFlow" />
       <ErrorBoundary>
         <Suspense fallback={<PageLoader />}>
           <Routes>

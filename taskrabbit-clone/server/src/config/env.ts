@@ -12,7 +12,7 @@ const optional = (key: string, defaultVal = ''): string => process.env[key] ?? d
 export const env = {
   NODE_ENV: optional('NODE_ENV', 'development'),
   PORT: parseInt(optional('PORT', '5000'), 10),
-  MONGODB_URI: optional('MONGODB_URI', 'mongodb://localhost:27017/neighbourwork'),
+  MONGODB_URI: optional('MONGODB_URI', 'mongodb://localhost:27017/taskflow'),
   REDIS_URL: optional('REDIS_URL', 'redis://localhost:6379'),
   JWT_SECRET: optional('JWT_SECRET', 'dev_jwt_secret_change_in_production'),
   JWT_REFRESH_SECRET: optional('JWT_REFRESH_SECRET', 'dev_refresh_secret_change_in_production'),

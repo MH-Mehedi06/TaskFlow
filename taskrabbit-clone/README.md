@@ -1,6 +1,6 @@
-# NeighbourWork
+# TaskFlow
 
-A full-stack NeighbourWork-inspired home services marketplace.
+A full-stack TaskFlow-inspired home services marketplace.
 
 ## Stack
 - **Frontend**: React 18 + Vite + TypeScript + Tailwind CSS

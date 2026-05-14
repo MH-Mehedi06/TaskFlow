@@ -75,7 +75,7 @@ export default function AdminLayout() {
         </div>
         {!collapsed && (
           <div className="min-w-0">
-            <p className="text-white font-bold text-sm leading-tight">NeighbourWork</p>
+            <p className="text-white font-bold text-sm leading-tight">TaskFlow</p>
             <p className="text-gray-400 text-[10px] font-medium uppercase tracking-widest">Admin</p>
           </div>
         )}

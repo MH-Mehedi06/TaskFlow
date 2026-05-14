@@ -415,7 +415,7 @@ export default function BookingWizard() {
 
   return (
     <>
-      <Helmet><title>Book a Tasker | NeighbourWork</title></Helmet>
+      <Helmet><title>Book a Tasker | TaskFlow</title></Helmet>
 
       <div className="min-h-screen bg-gray-50 py-10 px-4">
         <div className="max-w-2xl mx-auto">
