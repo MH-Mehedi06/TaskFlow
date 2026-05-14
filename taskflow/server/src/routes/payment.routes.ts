@@ -23,7 +23,7 @@ router.post('/confirm', requireRole('client'), confirmPayment);
 router.post('/capture/:taskId', capturePayment);
 router.post('/refund/:taskId', requireRole('admin'), refundPayment);
 router.get('/history', getPaymentHistory);
-router.post('/connect/create', requireRole('tasker'), createConnectAccount);
-router.get('/connect/link', requireRole('tasker'), getConnectOnboardingLink);
+router.post('/connect/create', requireRole('tasker', 'admin'), createConnectAccount);
+router.get('/connect/link', requireRole('tasker', 'admin'), getConnectOnboardingLink);
 
 export default router;

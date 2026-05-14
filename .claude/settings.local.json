@@ -59,10 +59,14 @@
       "Bash(redis-cli KEYS \"cache:/api/categories*\")",
       "Bash(npx kill-port *)",
       "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\('Count:', len\\(d['data']\\), '| First:', d['data'][0]['name'] if d['data'] else 'EMPTY'\\)\")",
-      "Bash(netstat -ano)"
+      "Bash(netstat -ano)",
+      "Bash(mv \"c:/Users/User/Documents/GitHub/MachineLearningWithPython/Sessions/TaskFlow/taskrabbit-clone\" \"c:/Users/User/Documents/GitHub/MachineLearningWithPython/Sessions/TaskFlow/taskflow\" && echo \"Renamed successfully\")",
+      "Bash(curl -s http://localhost:5000/api/taskers/me -H \"Authorization: Bearer test\")",
+      "Bash(node -e \"const fs=require\\('fs'\\),p='src/server.ts',s=fs.statSync\\(p\\);fs.utimesSync\\(p,s.atime,new Date\\(\\)\\);console.log\\('Triggered restart'\\);\")"
     ],
     "additionalDirectories": [
-      "/media/abdullahmiraz/Miraz/NeighbourWork"
+      "/media/abdullahmiraz/Miraz/NeighbourWork",
+      "c:\\Users\\User\\Documents\\GitHub\\MachineLearningWithPython\\Sessions\\TaskFlow\\taskrabbit-clone"
     ]
   }
 }

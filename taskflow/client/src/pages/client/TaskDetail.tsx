@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
-import { ArrowLeft, Calendar, MapPin, Clock, AlertCircle, MessageSquare, X, Loader2, CheckCircle, Star, ShieldAlert } from 'lucide-react';
+import { ArrowLeft, Calendar, MapPin, Clock, AlertCircle, MessageSquare, X, Loader2, CheckCircle, Star, ShieldAlert, PlayCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { useGetTaskByIdQuery, useCancelTaskMutation } from '../../features/tasks/taskApi';
+import { useGetTaskByIdQuery, useCancelTaskMutation, useUpdateTaskStatusMutation } from '../../features/tasks/taskApi';
 import { useGetReviewByTaskQuery, useCreateReviewMutation } from '../../features/reviews/reviewApi';
 import { useAppSelector } from '../../app/hooks';
 import { IUser, ICategory, ITaskerProfile } from '../../types';
@@ -44,6 +44,7 @@ export default function TaskDetail() {
   const { data: task, isLoading, isError } = useGetTaskByIdQuery(id!);
   const { data: existingReview } = useGetReviewByTaskQuery(id!, { skip: !id });
   const [cancelTask, { isLoading: cancelling }] = useCancelTaskMutation();
+  const [updateTaskStatus, { isLoading: updatingStatus }] = useUpdateTaskStatusMutation();
   const [createReview, { isLoading: submittingReview }] = useCreateReviewMutation();
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [cancelReason, setCancelReason] = useState('');
@@ -95,6 +96,17 @@ export default function TaskDetail() {
   const tasker = task.taskerId as IUser | undefined;
   const canCancel = !['completed', 'cancelled'].includes(task.status);
   const currentIdx = STATUS_ORDER.indexOf(task.status);
+
+  const isTasker = user?._id === (tasker as IUser)?._id || user?.role === 'admin';
+
+  const handleStatusUpdate = async (status: string) => {
+    try {
+      await updateTaskStatus({ id: id!, status }).unwrap();
+      toast.success(`Task marked as ${status.replace('_', ' ')}`);
+    } catch {
+      toast.error('Failed to update task status');
+    }
+  };
 
   return (
     <>
@@ -304,6 +316,29 @@ export default function TaskDetail() {
               <div className="bg-white rounded-2xl border border-gray-200 p-5 text-center">
                 <p className="text-sm text-gray-500">Waiting for a Tasker to accept your task.</p>
               </div>
+            )}
+
+            {/* Tasker status actions */}
+            {isTasker && task.status === 'assigned' && (
+              <button
+                onClick={() => handleStatusUpdate('in_progress')}
+                disabled={updatingStatus}
+                className="w-full flex items-center justify-center gap-2 bg-amber-500 hover:bg-amber-600 disabled:opacity-60 text-white font-semibold py-2.5 rounded-xl text-sm transition-colors"
+              >
+                {updatingStatus ? <Loader2 className="w-4 h-4 animate-spin" /> : <Clock className="w-4 h-4" />}
+                Start Task
+              </button>
+            )}
+
+            {isTasker && task.status === 'in_progress' && (
+              <button
+                onClick={() => handleStatusUpdate('completed')}
+                disabled={updatingStatus}
+                className="w-full flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 disabled:opacity-60 text-white font-semibold py-2.5 rounded-xl text-sm transition-colors"
+              >
+                {updatingStatus ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
+                Mark as Complete
+              </button>
             )}
 
             {/* Actions */}
