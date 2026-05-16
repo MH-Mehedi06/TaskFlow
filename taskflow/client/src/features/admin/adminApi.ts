@@ -49,6 +49,38 @@ export interface AuditLogEntry {
   createdAt: string;
 }
 
+export interface RevenueSeries {
+  _id: { year: number; month?: number; week?: number };
+  revenue: number;
+  earnings: number;
+  taskValue: number;
+  transactions: number;
+}
+
+export interface RevenueCategoryBreakdown {
+  _id: string;
+  name: string;
+  icon?: string;
+  revenue: number;
+  count: number;
+}
+
+export interface RevenueData {
+  series: RevenueSeries[];
+  summary: {
+    totalRevenue: number;
+    totalEarnings: number;
+    totalTaskValue: number;
+    totalTransactions: number;
+    periodRevenue: number;
+    periodEarnings: number;
+    periodTransactions: number;
+    avgRevenuePerPeriod: number;
+  };
+  categoryBreakdown: RevenueCategoryBreakdown[];
+  period: string;
+}
+
 export const adminApi = createApi({
   reducerPath: 'adminApi',
   keepUnusedDataFor: 60,
@@ -167,6 +199,13 @@ export const adminApi = createApi({
       providesTags: ['AdminFinancials'],
     }),
 
+    // ── Revenue analytics ──
+    getRevenue: builder.query<RevenueData, { period?: string }>({
+      query: ({ period = 'monthly' } = {}) => `/revenue?period=${period}`,
+      transformResponse: (res: ApiResponse<RevenueData>) => res.data,
+      providesTags: ['AdminFinancials'],
+    }),
+
     // ── Taskers ──
     getAdminTaskers: builder.query<{ taskers: ITaskerProfile[]; total: number; page: number; pages: number }, { page?: number; search?: string; elite?: string }>({
       query: ({ page = 1, search, elite } = {}) => {
@@ -251,6 +290,7 @@ export const {
   useUpdateCategoryMutation,
   useDeleteCategoryMutation,
   useGetFinancialsQuery,
+  useGetRevenueQuery,
   useGetAdminTaskersQuery,
   useToggleEliteBadgeMutation,
   useToggleBackgroundCheckMutation,

@@ -5,7 +5,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import {
   LayoutDashboard, Users, Briefcase, ShoppingBag, AlertTriangle,
   Star, Tag, DollarSign, Bell, Settings, ChevronLeft, ChevronRight,
-  LogOut, Menu, X, Shield, ClipboardList,
+  LogOut, Menu, X, Shield, ClipboardList, TrendingUp,
 } from 'lucide-react';
 import { RootState } from '../../app/store';
 import { logout } from '../../features/auth/authSlice';
@@ -33,6 +33,7 @@ const NAV_SECTIONS = [
     items: [
       { to: '/admin/categories', label: 'Categories', icon: Tag },
       { to: '/admin/financials', label: 'Financials', icon: DollarSign },
+      { to: '/admin/revenue',    label: 'Revenue',    icon: TrendingUp },
       { to: '/admin/broadcast', label: 'Broadcast', icon: Bell },
       { to: '/admin/settings', label: 'Settings', icon: Settings },
       { to: '/admin/audit-log', label: 'Audit Log', icon: ClipboardList },

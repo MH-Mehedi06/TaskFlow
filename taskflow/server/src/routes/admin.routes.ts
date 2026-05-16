@@ -26,6 +26,7 @@ import {
   updateSettings,
   getRecentActivity,
   getAuditLog,
+  getRevenue,
 } from '../controllers/admin.controller';
 
 const router = Router();
@@ -56,6 +57,7 @@ router.put('/categories/:id', updateCategory);
 router.delete('/categories/:id', deleteCategory);
 
 router.get('/financials', getFinancials);
+router.get('/revenue', getRevenue);
 
 router.get('/taskers', getAdminTaskers);
 router.put('/taskers/:id/elite', toggleEliteBadge);

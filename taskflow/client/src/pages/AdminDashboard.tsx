@@ -11,6 +11,7 @@ import Financials from './admin/Financials';
 import Broadcast from './admin/Broadcast';
 import AdminSettings from './admin/AdminSettings';
 import AuditLog from './admin/AuditLog';
+import Revenue from './admin/Revenue';
 
 export default function AdminDashboard() {
   return (
@@ -25,6 +26,7 @@ export default function AdminDashboard() {
         <Route path="reviews" element={<Reviews />} />
         <Route path="categories" element={<Categories />} />
         <Route path="financials" element={<Financials />} />
+        <Route path="revenue" element={<Revenue />} />
         <Route path="broadcast" element={<Broadcast />} />
         <Route path="settings" element={<AdminSettings />} />
         <Route path="audit-log" element={<AuditLog />} />

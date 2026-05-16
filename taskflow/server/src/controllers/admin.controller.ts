@@ -435,6 +435,96 @@ export const getFinancials = asyncHandler(async (req: Request, res: Response) =>
   }));
 });
 
+// ── Revenue analytics ─────────────────────────────────────────────────────────
+
+export const getRevenue = asyncHandler(async (req: Request, res: Response) => {
+  const { period = 'monthly' } = req.query;
+
+  let since: Date;
+  let groupId: Record<string, unknown>;
+  let sortStage: Record<string, 1 | -1>;
+
+  switch (period) {
+    case 'weekly':
+      since = new Date(Date.now() - 12 * 7 * 24 * 60 * 60 * 1000);
+      groupId = { year: { $year: '$updatedAt' }, week: { $week: '$updatedAt' } };
+      sortStage = { '_id.year': 1, '_id.week': 1 };
+      break;
+    case 'halfYearly':
+      since = new Date(Date.now() - 6 * 30 * 24 * 60 * 60 * 1000);
+      groupId = { year: { $year: '$updatedAt' }, month: { $month: '$updatedAt' } };
+      sortStage = { '_id.year': 1, '_id.month': 1 };
+      break;
+    case 'yearly':
+      since = new Date(Date.now() - 5 * 365 * 24 * 60 * 60 * 1000);
+      groupId = { year: { $year: '$updatedAt' } };
+      sortStage = { '_id.year': 1 };
+      break;
+    default: // monthly
+      since = new Date(Date.now() - 12 * 30 * 24 * 60 * 60 * 1000);
+      groupId = { year: { $year: '$updatedAt' }, month: { $month: '$updatedAt' } };
+      sortStage = { '_id.year': 1, '_id.month': 1 };
+  }
+
+  const [series, totals, categoryBreakdown] = await Promise.all([
+    Task.aggregate([
+      { $match: { paymentStatus: 'captured', updatedAt: { $gte: since } } },
+      {
+        $group: {
+          _id: groupId,
+          revenue: { $sum: '$platformFee' },
+          earnings: { $sum: '$taskerEarnings' },
+          taskValue: { $sum: '$price' },
+          transactions: { $sum: 1 },
+        },
+      },
+      { $sort: sortStage },
+    ]),
+    Task.aggregate([
+      { $match: { paymentStatus: 'captured' } },
+      {
+        $group: {
+          _id: null,
+          revenue: { $sum: '$platformFee' },
+          earnings: { $sum: '$taskerEarnings' },
+          taskValue: { $sum: '$price' },
+          count: { $sum: 1 },
+        },
+      },
+    ]),
+    Task.aggregate([
+      { $match: { paymentStatus: 'captured', updatedAt: { $gte: since } } },
+      { $group: { _id: '$categoryId', revenue: { $sum: '$platformFee' }, count: { $sum: 1 } } },
+      { $sort: { revenue: -1 } },
+      { $limit: 6 },
+      { $lookup: { from: 'categories', localField: '_id', foreignField: '_id', as: 'cat' } },
+      { $unwind: { path: '$cat', preserveNullAndEmptyArrays: true } },
+      { $project: { name: { $ifNull: ['$cat.name', 'Other'] }, icon: '$cat.icon', revenue: 1, count: 1 } },
+    ]),
+  ]);
+
+  const periodSummary = series.reduce(
+    (acc, s) => ({ revenue: acc.revenue + s.revenue, earnings: acc.earnings + s.earnings, transactions: acc.transactions + s.transactions }),
+    { revenue: 0, earnings: 0, transactions: 0 },
+  );
+
+  return res.json(new ApiResponse(200, {
+    series,
+    summary: {
+      totalRevenue: totals[0]?.revenue ?? 0,
+      totalEarnings: totals[0]?.earnings ?? 0,
+      totalTaskValue: totals[0]?.taskValue ?? 0,
+      totalTransactions: totals[0]?.count ?? 0,
+      periodRevenue: periodSummary.revenue,
+      periodEarnings: periodSummary.earnings,
+      periodTransactions: periodSummary.transactions,
+      avgRevenuePerPeriod: series.length > 0 ? periodSummary.revenue / series.length : 0,
+    },
+    categoryBreakdown,
+    period: String(period),
+  }));
+});
+
 // ── Admin taskers list ────────────────────────────────────────────────────────
 
 export const getAdminTaskers = asyncHandler(async (req: Request, res: Response) => {
