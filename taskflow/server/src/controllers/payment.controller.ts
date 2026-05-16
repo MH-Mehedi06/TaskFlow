@@ -1,20 +1,18 @@
 import { Request, Response } from 'express';
 import { Task } from '../models/Task';
 import { TaskerProfile } from '../models/TaskerProfile';
-import { User, IUser } from '../models/User';
+import { User } from '../models/User';
 import { asyncHandler } from '../utils/asyncHandler';
+import { getUserId, getUserRole } from '../utils/requestHelpers';
 import { ApiError } from '../utils/ApiError';
 import { ApiResponse } from '../utils/ApiResponse';
 import * as stripeService from '../services/stripe.service';
 import { env } from '../config/env';
 import { notifyPaymentReceived } from '../services/notification.service';
 
-const getUserId = (u: Express.User) => String((u as unknown as IUser)._id);
-const getUserRole = (u: Express.User) => (u as unknown as IUser).role;
-
 // POST /api/payments/create-intent
 export const createPaymentIntent = asyncHandler(async (req: Request, res: Response) => {
-  const clientId = getUserId(req.user!);
+  const clientId = getUserId(req);
   const { taskId } = req.body;
 
   const task = await Task.findById(taskId);
@@ -47,7 +45,7 @@ export const createPaymentIntent = asyncHandler(async (req: Request, res: Respon
 
 // POST /api/payments/confirm  — called after Stripe.js confirmCardPayment (or dev mock)
 export const confirmPayment = asyncHandler(async (req: Request, res: Response) => {
-  const clientId = getUserId(req.user!);
+  const clientId = getUserId(req);
   const { taskId } = req.body;
 
   const task = await Task.findById(taskId);
@@ -64,23 +62,29 @@ export const confirmPayment = asyncHandler(async (req: Request, res: Response) =
 
 // POST /api/payments/capture/:taskId  — called on task completion
 export const capturePayment = asyncHandler(async (req: Request, res: Response) => {
-  const userId = getUserId(req.user!);
-  const role = getUserRole(req.user!);
+  const userId = getUserId(req);
+  const role = getUserRole(req);
 
-  const task = await Task.findById(req.params.taskId);
-  if (!task) throw new ApiError(404, 'Task not found');
-
-  const isTasker = String(task.taskerId) === userId;
+  // Validate access before attempting the atomic update
+  const existing = await Task.findById(req.params.taskId);
+  if (!existing) throw new ApiError(404, 'Task not found');
+  const isTasker = String(existing.taskerId) === userId;
   const isAdmin = role === 'admin';
   if (!isTasker && !isAdmin) throw new ApiError(403, 'Only the assigned Tasker or admin can capture payment');
-  if (task.paymentStatus !== 'held') throw new ApiError(400, 'No held payment to capture');
+  if (existing.paymentStatus !== 'held') throw new ApiError(400, 'No held payment to capture');
+
+  // Atomically flip paymentStatus from 'held' → 'captured'.
+  // If updateTaskStatus already captured it concurrently, this returns null and we bail out.
+  const task = await Task.findOneAndUpdate(
+    { _id: req.params.taskId, paymentStatus: 'held' },
+    { paymentStatus: 'captured' },
+    { new: true }
+  );
+  if (!task) throw new ApiError(409, 'Payment was already captured by another request');
 
   if (task.paymentIntentId) {
     await stripeService.capturePaymentIntent(task.paymentIntentId);
   }
-
-  task.paymentStatus = 'captured';
-  await task.save();
 
   // Transfer earnings to tasker's Stripe Connect account
   if (task.taskerId && task.taskerEarnings) {
@@ -97,7 +101,7 @@ export const capturePayment = asyncHandler(async (req: Request, res: Response) =
 
 // POST /api/payments/refund/:taskId
 export const refundPayment = asyncHandler(async (req: Request, res: Response) => {
-  const role = getUserRole(req.user!);
+  const role = getUserRole(req);
   const { amount } = req.body;
 
   const task = await Task.findById(req.params.taskId);
@@ -117,7 +121,7 @@ export const refundPayment = asyncHandler(async (req: Request, res: Response) =>
 
 // POST /api/payments/connect/create  — tasker creates Stripe Connect account
 export const createConnectAccount = asyncHandler(async (req: Request, res: Response) => {
-  const userId = getUserId(req.user!);
+  const userId = getUserId(req);
 
   const user = await User.findById(userId);
   if (!user) throw new ApiError(404, 'User not found');
@@ -138,7 +142,7 @@ export const createConnectAccount = asyncHandler(async (req: Request, res: Respo
 
 // GET /api/payments/connect/link  — get Stripe Connect onboarding URL
 export const getConnectOnboardingLink = asyncHandler(async (req: Request, res: Response) => {
-  const userId = getUserId(req.user!);
+  const userId = getUserId(req);
 
   const profile = await TaskerProfile.findOne({ userId });
   if (!profile?.stripeAccountId) throw new ApiError(400, 'Create a Connect account first');
@@ -153,8 +157,8 @@ export const getConnectOnboardingLink = asyncHandler(async (req: Request, res: R
 
 // GET /api/payments/history
 export const getPaymentHistory = asyncHandler(async (req: Request, res: Response) => {
-  const userId = getUserId(req.user!);
-  const role = getUserRole(req.user!);
+  const userId = getUserId(req);
+  const role = getUserRole(req);
 
   const filter =
     role === 'tasker'

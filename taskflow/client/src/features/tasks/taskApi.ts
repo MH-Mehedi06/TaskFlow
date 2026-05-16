@@ -20,7 +20,7 @@ export const taskApi = createApi({
       transformResponse: (res: ApiResponse<TaskStats>) => res.data,
       providesTags: ['Task'],
     }),
-    createTask: builder.mutation<ITask, Partial<ITask> & { taskerId?: string }>({
+    createTask: builder.mutation<ITask, Partial<ITask>>({
       query: (body) => ({ url: '/', method: 'POST', body }),
       transformResponse: (res: ApiResponse<ITask>) => res.data,
       invalidatesTags: ['Task'],
@@ -45,7 +45,7 @@ export const taskApi = createApi({
       transformResponse: (res: ApiResponse<ITask>) => res.data,
       invalidatesTags: ['Task'],
     }),
-    updateTaskStatus: builder.mutation<ITask, { id: string; status: string; taskerId?: string }>({
+    updateTaskStatus: builder.mutation<ITask, { id: string; status: string }>({
       query: ({ id, ...body }) => ({ url: `/${id}/status`, method: 'PUT', body }),
       transformResponse: (res: ApiResponse<ITask>) => res.data,
       invalidatesTags: ['Task'],

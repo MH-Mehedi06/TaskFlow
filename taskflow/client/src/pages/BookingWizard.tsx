@@ -1,19 +1,18 @@
 import { useRef, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
-import { ChevronLeft, ChevronRight, Check, Upload, X, Star, Loader2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Check, Upload, X, Loader2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAppDispatch, useAppSelector } from '../app/hooks';
 import {
-  setStep, setCategory, setSubCategory, setTaskDetails, setSelectedTasker, resetWizard,
+  setStep, setCategory, setSubCategory, setTaskDetails, resetWizard,
 } from '../features/tasks/taskSlice';
 import { useCreateTaskMutation, useUploadTaskPhotosMutation } from '../features/tasks/taskApi';
 import { useGetCategoriesQuery } from '../features/categories/categoryApi';
-import { useGetTaskersQuery } from '../features/taskers/taskerApi';
-import { ICategory, ITaskerProfile, IUser } from '../types';
+import { ICategory } from '../types';
 
-const TOTAL = 6;
-const STEP_LABELS = ['Category', 'Task Details', 'Photos', 'Schedule', 'Choose Tasker', 'Review'];
+const TOTAL = 5;
+const STEP_LABELS = ['Category', 'Task Details', 'Photos', 'Schedule', 'Review'];
 
 // ─── Step components ────────────────────────────────────────────────────────
 
@@ -70,7 +69,7 @@ function Step2Details() {
   return (
     <div className="space-y-5">
       <h2 className="text-xl font-bold text-gray-900 mb-1">Describe your task</h2>
-      <p className="text-sm text-gray-500 mb-4">Give the Tasker the details they need to help you.</p>
+      <p className="text-sm text-gray-500 mb-4">Give Taskers the details they need to apply.</p>
 
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">Task title</label>
@@ -137,7 +136,7 @@ function Step3Photos({ files, setFiles }: { files: File[]; setFiles: (f: File[])
   return (
     <div>
       <h2 className="text-xl font-bold text-gray-900 mb-1">Add photos</h2>
-      <p className="text-sm text-gray-500 mb-6">Help your Tasker understand the job. Up to 5 photos.</p>
+      <p className="text-sm text-gray-500 mb-6">Help Taskers understand the job. Up to 5 photos.</p>
 
       <div className="grid grid-cols-3 gap-3 mb-4">
         {files.map((f, i) => (
@@ -212,90 +211,8 @@ function Step4Schedule() {
   );
 }
 
-function Step5Tasker() {
-  const dispatch = useAppDispatch();
+function Step5Review({ files }: { files: File[] }) {
   const wizard = useAppSelector((s) => s.taskWizard);
-
-  // Show all available taskers — category matching is used for sorting, not filtering
-  const { data, isLoading } = useGetTaskersQuery({ limit: 20 });
-  const taskers = (data as unknown as { data: ITaskerProfile[] })?.data ?? [];
-
-  return (
-    <div>
-      <h2 className="text-xl font-bold text-gray-900 mb-1">Choose a Tasker</h2>
-      <p className="text-sm text-gray-500 mb-6">Pick someone or skip — we'll find the best match for you.</p>
-
-      {/* Skip / best available option */}
-      <div
-        onClick={() => dispatch(setSelectedTasker(null as unknown as ITaskerProfile))}
-        className={`flex items-center gap-4 p-4 rounded-xl border-2 cursor-pointer mb-4 transition-colors ${!wizard.selectedTasker ? 'border-primary-600 bg-primary-50' : 'border-gray-200 hover:border-gray-300'}`}
-      >
-        <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${!wizard.selectedTasker ? 'border-primary-600 bg-primary-600' : 'border-gray-300'}`}>
-          {!wizard.selectedTasker && <div className="w-2 h-2 rounded-full bg-white" />}
-        </div>
-        <div>
-          <p className="font-semibold text-gray-800">Best available Tasker</p>
-          <p className="text-xs text-gray-500">We'll match you with the highest-rated Tasker</p>
-        </div>
-      </div>
-
-      {isLoading ? (
-        <div className="flex justify-center py-8"><Loader2 className="w-6 h-6 animate-spin text-primary-700" /></div>
-      ) : taskers.length === 0 ? (
-        <div className="text-center py-8 text-gray-400 border border-dashed border-gray-200 rounded-xl">
-          <p className="text-sm font-medium">No taskers available yet</p>
-          <p className="text-xs mt-1">Select "Best available Tasker" and we'll assign the right person.</p>
-        </div>
-      ) : (
-        <div className="space-y-3">
-          {taskers.map((t) => {
-            const user = t.userId as IUser;
-            const isSelected = wizard.selectedTasker?._id === t._id;
-            const rate = t.hourlyRates.find((r) => r.categoryId === wizard.categoryId)?.rate
-              ?? (t.hourlyRates[0]?.rate);
-
-            return (
-              <div
-                key={t._id}
-                onClick={() => dispatch(setSelectedTasker(t))}
-                className={`flex items-center gap-4 p-4 rounded-xl border-2 cursor-pointer transition-colors ${isSelected ? 'border-primary-600 bg-primary-50' : 'border-gray-200 hover:border-gray-300'}`}
-              >
-                <div className={`w-5 h-5 rounded-full border-2 flex-shrink-0 flex items-center justify-center ${isSelected ? 'border-primary-600 bg-primary-600' : 'border-gray-300'}`}>
-                  {isSelected && <div className="w-2 h-2 rounded-full bg-white" />}
-                </div>
-                <img
-                  src={user?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.name || 'T')}&background=1D4ED8&color=fff`}
-                  alt=""
-                  className="w-12 h-12 rounded-full object-cover flex-shrink-0"
-                />
-                <div className="flex-1 min-w-0">
-                  <p className="font-semibold text-gray-800">{user?.name}</p>
-                  {(t as ITaskerProfile & { headline?: string }).headline && (
-                    <p className="text-xs text-gray-400 truncate">{(t as ITaskerProfile & { headline?: string }).headline}</p>
-                  )}
-                  <div className="flex items-center gap-1.5 text-xs text-gray-500 mt-0.5">
-                    <Star className="w-3 h-3 fill-yellow-400 text-yellow-400" />
-                    {t.avgRating.toFixed(1)} · {t.totalReviews} reviews · {t.totalTasksCompleted} tasks
-                  </div>
-                </div>
-                <span className="flex-shrink-0 text-sm font-semibold text-primary-700">
-                  {rate ? `$${rate}/hr` : 'Discuss rate'}
-                </span>
-              </div>
-            );
-          })}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function Step6Review({ files }: { files: File[] }) {
-  const wizard = useAppSelector((s) => s.taskWizard);
-  const taskerUser = wizard.selectedTasker?.userId as IUser | undefined;
-  const rate = wizard.selectedTasker?.hourlyRates.find((r) => r.categoryId === wizard.categoryId)?.rate
-    ?? wizard.selectedTasker?.hourlyRates[0]?.rate;
-  const estimatedTotal = rate ? rate * wizard.estimatedHours : null;
 
   const row = (label: string, value: string) => (
     <div key={label} className="flex gap-3 py-3 border-b border-gray-100 last:border-0">
@@ -306,8 +223,8 @@ function Step6Review({ files }: { files: File[] }) {
 
   return (
     <div>
-      <h2 className="text-xl font-bold text-gray-900 mb-1">Review your booking</h2>
-      <p className="text-sm text-gray-500 mb-6">Double-check everything before confirming.</p>
+      <h2 className="text-xl font-bold text-gray-900 mb-1">Review your task</h2>
+      <p className="text-sm text-gray-500 mb-6">Double-check everything before posting to Taskers.</p>
 
       <div className="bg-gray-50 rounded-xl p-5 mb-4">
         {row('Service', `${wizard.category?.icon ?? ''} ${wizard.category?.name ?? '—'}`)}
@@ -316,8 +233,6 @@ function Step6Review({ files }: { files: File[] }) {
         {row('Location', wizard.address || '—')}
         {row('Scheduled', wizard.scheduledAt ? new Date(wizard.scheduledAt).toLocaleString() : '—')}
         {row('Est. hours', `${wizard.estimatedHours}h`)}
-        {row('Tasker', taskerUser?.name ?? 'Best available')}
-        {estimatedTotal && row('Estimated total', `$${estimatedTotal.toFixed(2)}`)}
         {wizard.notes && row('Notes', wizard.notes)}
       </div>
 
@@ -332,11 +247,9 @@ function Step6Review({ files }: { files: File[] }) {
         </div>
       )}
 
-      {!estimatedTotal && (
-        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm text-amber-700">
-          Final pricing will be confirmed with the Tasker before work begins.
-        </div>
-      )}
+      <div className="bg-green-50 border border-green-200 rounded-xl p-4 text-sm text-green-700">
+        <strong>How it works:</strong> After posting, Taskers will apply with their rates and cover letters. You review applications and choose the best fit.
+      </div>
     </div>
   );
 }
@@ -382,12 +295,6 @@ export default function BookingWizard() {
 
       if (wizard.notes?.trim()) body.notes = wizard.notes.trim();
 
-      if (wizard.selectedTasker) {
-        // userId may be a populated IUser object — extract the string _id
-        const uid = wizard.selectedTasker.userId;
-        body.taskerId = typeof uid === 'string' ? uid : (uid as IUser)._id;
-      }
-
       const task = await createTask(body as Parameters<typeof createTask>[0]).unwrap();
 
       if (photoFiles.length > 0) {
@@ -400,22 +307,18 @@ export default function BookingWizard() {
         }
       }
 
-      toast.success('Task booked successfully!');
+      toast.success('Task posted! Taskers can now apply.');
       dispatch(resetWizard());
-      if (task.price) {
-        navigate(`/payment/${task._id}`);
-      } else {
-        navigate(`/tasks/${task._id}`);
-      }
+      navigate(`/tasks/${task._id}`);
     } catch (err: unknown) {
       const msg = (err as { data?: { message?: string } })?.data?.message;
-      toast.error(msg ?? 'Booking failed. Please try again.');
+      toast.error(msg ?? 'Posting failed. Please try again.');
     }
   };
 
   return (
     <>
-      <Helmet><title>Book a Tasker | TaskFlow</title></Helmet>
+      <Helmet><title>Post a Task | TaskFlow</title></Helmet>
 
       <div className="min-h-screen bg-gray-50 py-10 px-4">
         <div className="max-w-2xl mx-auto">
@@ -447,8 +350,7 @@ export default function BookingWizard() {
             {wizard.step === 2 && <Step2Details />}
             {wizard.step === 3 && <Step3Photos files={photoFiles} setFiles={setPhotoFiles} />}
             {wizard.step === 4 && <Step4Schedule />}
-            {wizard.step === 5 && <Step5Tasker />}
-            {wizard.step === 6 && <Step6Review files={photoFiles} />}
+            {wizard.step === 5 && <Step5Review files={photoFiles} />}
 
             {/* Navigation */}
             <div className="mt-8 flex items-center justify-between pt-6 border-t border-gray-100">
@@ -475,7 +377,7 @@ export default function BookingWizard() {
                   className="flex items-center gap-2 bg-primary-700 hover:bg-primary-800 disabled:opacity-60 text-white font-semibold px-6 py-2.5 rounded-lg transition-colors"
                 >
                   {isBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
-                  {isBusy ? 'Booking…' : 'Confirm Booking'}
+                  {isBusy ? 'Posting…' : 'Post Task'}
                 </button>
               )}
             </div>
@@ -485,4 +387,3 @@ export default function BookingWizard() {
     </>
   );
 }
-

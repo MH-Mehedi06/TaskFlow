@@ -3,13 +3,12 @@ import { validationResult } from 'express-validator';
 import { TaskerProfile } from '../models/TaskerProfile';
 import { User, IUser } from '../models/User';
 import { asyncHandler } from '../utils/asyncHandler';
+import { getUserId } from '../utils/requestHelpers';
 import { ApiError } from '../utils/ApiError';
 import { ApiResponse } from '../utils/ApiResponse';
 import { uploadBuffer } from '../services/cloudinary.service';
 import { indexTaskerEmbedding } from './search.controller';
 import { invalidateCache } from '../middleware/cache.middleware';
-
-const getUserId = (user: Express.User): string => String((user as unknown as IUser)._id);
 
 export const getTaskers = asyncHandler(async (req: Request, res: Response) => {
   const { category, minRating, maxRate, page = 1, limit = 12 } = req.query;
@@ -50,7 +49,7 @@ export const getTaskers = asyncHandler(async (req: Request, res: Response) => {
 
 export const getMyProfile = asyncHandler(async (req: Request, res: Response) => {
   if (!req.user) throw new ApiError(401, 'Unauthorized');
-  const userId = getUserId(req.user);
+  const userId = getUserId(req);
   const profile = await TaskerProfile.findOne({ userId })
     .populate('userId', 'name email avatar phone isVerified')
     .populate('skills', 'name slug icon');
@@ -75,7 +74,7 @@ export const updateMyProfile = asyncHandler(async (req: Request, res: Response) 
   if (!errors.isEmpty()) throw new ApiError(422, 'Validation failed', errors.array());
   if (!req.user) throw new ApiError(401, 'Unauthorized');
 
-  const userId = getUserId(req.user);
+  const userId = getUserId(req);
   const { bio, headline, skills, hourlyRates, serviceRadius, certifications } = req.body;
 
   const profile = await TaskerProfile.findOneAndUpdate(
@@ -99,7 +98,7 @@ export const updateMyProfile = asyncHandler(async (req: Request, res: Response) 
 
 export const updateAvailability = asyncHandler(async (req: Request, res: Response) => {
   if (!req.user) throw new ApiError(401, 'Unauthorized');
-  const userId = getUserId(req.user);
+  const userId = getUserId(req);
   const { availability } = req.body;
 
   const profile = await TaskerProfile.findOneAndUpdate(
@@ -113,7 +112,7 @@ export const updateAvailability = asyncHandler(async (req: Request, res: Respons
 
 export const uploadAvatar = asyncHandler(async (req: Request, res: Response) => {
   if (!req.user) throw new ApiError(401, 'Unauthorized');
-  const userId = getUserId(req.user);
+  const userId = getUserId(req);
   const { base64 } = req.body;
   if (!base64 || typeof base64 !== 'string') throw new ApiError(400, 'No image provided');
 
@@ -129,7 +128,7 @@ export const uploadAvatar = asyncHandler(async (req: Request, res: Response) => 
 export const uploadPortfolioImage = asyncHandler(async (req: Request, res: Response) => {
   if (!req.user) throw new ApiError(401, 'Unauthorized');
   if (!req.file) throw new ApiError(400, 'No file uploaded');
-  const userId = getUserId(req.user);
+  const userId = getUserId(req);
 
   const url = await uploadBuffer(req.file.buffer, 'portfolio', `${userId}_${Date.now()}`);
   const profile = await TaskerProfile.findOneAndUpdate(
@@ -143,7 +142,7 @@ export const uploadPortfolioImage = asyncHandler(async (req: Request, res: Respo
 
 export const deletePortfolioImage = asyncHandler(async (req: Request, res: Response) => {
   if (!req.user) throw new ApiError(401, 'Unauthorized');
-  const userId = getUserId(req.user);
+  const userId = getUserId(req);
   const { url } = req.body;
 
   const profile = await TaskerProfile.findOneAndUpdate(

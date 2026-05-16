@@ -1,20 +1,18 @@
 import { Request, Response } from 'express';
 import { Dispute } from '../models/Dispute';
 import { Task } from '../models/Task';
-import { IUser } from '../models/User';
+import { IUser } from '../models/User'; // still needed for populated field type guards
 import { asyncHandler } from '../utils/asyncHandler';
 import { ApiResponse } from '../utils/ApiResponse';
 import { ApiError } from '../utils/ApiError';
 import { uploadBuffer } from '../services/cloudinary.service';
 import * as stripeService from '../services/stripe.service';
 import { notifyDisputeUpdate } from '../services/notification.service';
-
-const uid = (u: Express.User) => String((u as unknown as IUser)._id);
-const role = (u: Express.User) => (u as unknown as IUser).role;
+import { getUserId, getUserRole } from '../utils/requestHelpers';
 
 // POST /api/disputes
 export const createDispute = asyncHandler(async (req: Request, res: Response) => {
-  const userId = uid(req.user!);
+  const userId = getUserId(req);
   const { taskId, reason, description } = req.body;
 
   if (!taskId || !reason || !description) throw new ApiError(400, 'taskId, reason, and description are required');
@@ -53,8 +51,8 @@ export const createDispute = asyncHandler(async (req: Request, res: Response) =>
 
 // GET /api/disputes  — authenticated user sees their own disputes
 export const getMyDisputes = asyncHandler(async (req: Request, res: Response) => {
-  const userId = uid(req.user!);
-  const userRole = role(req.user!);
+  const userId = getUserId(req);
+  const userRole = getUserRole(req);
 
   const filter = userRole === 'admin' ? {} : {
     $or: [{ clientId: userId }, { taskerId: userId }],
@@ -72,8 +70,8 @@ export const getMyDisputes = asyncHandler(async (req: Request, res: Response) =>
 
 // GET /api/disputes/:id
 export const getDisputeById = asyncHandler(async (req: Request, res: Response) => {
-  const userId = uid(req.user!);
-  const userRole = role(req.user!);
+  const userId = getUserId(req);
+  const userRole = getUserRole(req);
 
   const dispute = await Dispute.findById(req.params.id)
     .populate('taskId', 'title status paymentIntentId')
@@ -99,7 +97,7 @@ export const getDisputeById = asyncHandler(async (req: Request, res: Response) =
 
 // PUT /api/disputes/:id/evidence  — upload evidence files
 export const uploadEvidence = asyncHandler(async (req: Request, res: Response) => {
-  const userId = uid(req.user!);
+  const userId = getUserId(req);
   const dispute = await Dispute.findById(req.params.id);
   if (!dispute) throw new ApiError(404, 'Dispute not found');
 
@@ -122,7 +120,7 @@ export const uploadEvidence = asyncHandler(async (req: Request, res: Response) =
 
 // PUT /api/disputes/:id/status  — admin changes status
 export const updateDisputeStatus = asyncHandler(async (req: Request, res: Response) => {
-  const adminUserId = uid(req.user!);
+  const adminUserId = getUserId(req);
   const { status, adminNotes, aiSummary, aiSuggestedResolution } = req.body;
 
   const VALID = ['open', 'under_review', 'resolved_refund', 'resolved_release', 'closed'];
@@ -153,7 +151,7 @@ export const updateDisputeStatus = asyncHandler(async (req: Request, res: Respon
 
 // POST /api/disputes/:id/resolve  — admin finalises with payment action
 export const resolveDispute = asyncHandler(async (req: Request, res: Response) => {
-  const adminUserId = uid(req.user!);
+  const adminUserId = getUserId(req);
   const { resolution, refundAmount, adminNotes } = req.body;
 
   const VALID_RES = ['full_refund', 'partial_refund', 'no_refund'];

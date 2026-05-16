@@ -8,6 +8,9 @@ export type NotificationType =
   | 'new_message'
   | 'review_request'
   | 'dispute_update'
+  | 'task_application'
+  | 'application_accepted'
+  | 'application_rejected'
   | 'system';
 
 export interface INotification extends Document {
@@ -33,6 +36,9 @@ const notificationSchema = new Schema<INotification>(
         'new_message',
         'review_request',
         'dispute_update',
+        'task_application',
+        'application_accepted',
+        'application_rejected',
         'system',
       ],
       required: true,

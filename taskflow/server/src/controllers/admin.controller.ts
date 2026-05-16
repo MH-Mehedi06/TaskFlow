@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { User, IUser } from '../models/User';
+import { User } from '../models/User';
 import { Task } from '../models/Task';
 import { TaskerProfile } from '../models/TaskerProfile';
 import { Category } from '../models/Category';
@@ -11,8 +11,7 @@ import { AuditLog, AuditAction, IAuditLog } from '../models/AuditLog';
 import { asyncHandler } from '../utils/asyncHandler';
 import { ApiResponse } from '../utils/ApiResponse';
 import { ApiError } from '../utils/ApiError';
-
-const uid = (u: Express.User) => String((u as unknown as IUser)._id);
+import { getUserId } from '../utils/requestHelpers';
 
 async function recordAuditLog(
   req: Request,
@@ -23,7 +22,7 @@ async function recordAuditLog(
   details?: string,
 ) {
   try {
-    const admin = req.user as unknown as IUser;
+    const admin = req.user!;
     const forwarded = req.headers['x-forwarded-for'];
     const ip = Array.isArray(forwarded) ? forwarded[0] : (forwarded ?? req.ip ?? '');
     await AuditLog.create({
@@ -130,7 +129,7 @@ export const getUserById = asyncHandler(async (req: Request, res: Response) => {
 });
 
 export const updateUserRole = asyncHandler(async (req: Request, res: Response) => {
-  const adminId = uid(req.user!);
+  const adminId = getUserId(req);
   const { role } = req.body;
   if (!['client', 'tasker', 'admin'].includes(role)) throw new ApiError(400, 'Invalid role');
   if (req.params.id === adminId) throw new ApiError(400, 'Cannot change your own role');
@@ -142,7 +141,7 @@ export const updateUserRole = asyncHandler(async (req: Request, res: Response) =
 });
 
 export const banUser = asyncHandler(async (req: Request, res: Response) => {
-  const adminId = uid(req.user!);
+  const adminId = getUserId(req);
   const { banned } = req.body;
   if (req.params.id === adminId) throw new ApiError(400, 'Cannot ban yourself');
 
@@ -277,7 +276,7 @@ export const sendSystemNotification = asyncHandler(async (req: Request, res: Res
 // ── Delete user ───────────────────────────────────────────────────────────────
 
 export const deleteUser = asyncHandler(async (req: Request, res: Response) => {
-  const adminId = uid(req.user!);
+  const adminId = getUserId(req);
   if (req.params.id === adminId) throw new ApiError(400, 'Cannot delete yourself');
 
   const user = await User.findById(req.params.id);
@@ -301,7 +300,7 @@ export const deleteUser = asyncHandler(async (req: Request, res: Response) => {
 // ── Resolve dispute ───────────────────────────────────────────────────────────
 
 export const resolveDispute = asyncHandler(async (req: Request, res: Response) => {
-  const adminId = uid(req.user!);
+  const adminId = getUserId(req);
   const { status, adminNotes, resolution, refundAmount } = req.body;
 
   const validStatuses = ['under_review', 'resolved_refund', 'resolved_release', 'closed'];

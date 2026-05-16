@@ -10,6 +10,7 @@ import { reviewApi } from '../features/reviews/reviewApi';
 import { disputeApi } from '../features/disputes/disputeApi';
 import { adminApi } from '../features/admin/adminApi';
 import { searchApi } from '../features/search/searchApi';
+import { applicationApi } from '../features/applications/applicationApi';
 import authReducer from '../features/auth/authSlice';
 import taskWizardReducer from '../features/tasks/taskSlice';
 
@@ -28,6 +29,7 @@ export const store = configureStore({
     [disputeApi.reducerPath]: disputeApi.reducer,
     [adminApi.reducerPath]: adminApi.reducer,
     [searchApi.reducerPath]: searchApi.reducer,
+    [applicationApi.reducerPath]: applicationApi.reducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware().concat(
@@ -42,6 +44,7 @@ export const store = configureStore({
       disputeApi.middleware,
       adminApi.middleware,
       searchApi.middleware,
+      applicationApi.middleware,
     ),
 });
 

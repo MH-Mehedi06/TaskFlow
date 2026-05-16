@@ -10,6 +10,7 @@ import { emailService } from '../services/email.service';
 import { asyncHandler } from '../utils/asyncHandler';
 import { ApiError } from '../utils/ApiError';
 import { ApiResponse } from '../utils/ApiResponse';
+import { getUserId } from '../utils/requestHelpers';
 
 const generateTokens = (userId: string) => {
   const accessToken = jwt.sign({ sub: userId }, env.JWT_SECRET, {
@@ -20,9 +21,6 @@ const generateTokens = (userId: string) => {
   } as SignOptions);
   return { accessToken, refreshToken };
 };
-
-// Helper to safely get _id string from req.user
-const getUserId = (user: Express.User): string => String((user as unknown as IUser)._id);
 
 const setRefreshCookie = (res: Response, token: string) => {
   res.cookie('refreshToken', token, {
@@ -90,7 +88,7 @@ export const login = asyncHandler(async (req: Request, res: Response) => {
 });
 
 export const logout = asyncHandler(async (req: Request, res: Response) => {
-  const userId = req.user ? getUserId(req.user) : null;
+  const userId = req.user ? getUserId(req) : null;
   if (userId) await redis.del(`refresh:${userId}`);
   res.clearCookie('refreshToken');
   res.json(new ApiResponse(200, null, 'Logged out'));
@@ -171,7 +169,7 @@ export const resetPassword = asyncHandler(async (req: Request, res: Response) =>
 export const googleCallback = asyncHandler(async (req: Request, res: Response) => {
   if (!req.user) throw new ApiError(401, 'OAuth failed');
 
-  const uid = getUserId(req.user);
+  const uid = getUserId(req);
   const { accessToken, refreshToken: rt } = generateTokens(uid);
   const hash = crypto.createHash('sha256').update(rt).digest('hex');
   await redis.setex(`refresh:${uid}`, 7 * 24 * 60 * 60, hash);
@@ -182,6 +180,6 @@ export const googleCallback = asyncHandler(async (req: Request, res: Response) =
 
 export const getMe = asyncHandler(async (req: Request, res: Response) => {
   if (!req.user) throw new ApiError(401, 'Unauthorized');
-  const user = await User.findById(getUserId(req.user)).select('-passwordHash');
+  const user = await User.findById(getUserId(req)).select('-passwordHash');
   res.json(new ApiResponse(200, { user }, 'User profile'));
 });

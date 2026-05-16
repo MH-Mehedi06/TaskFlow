@@ -1,5 +1,5 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
-import { ICategory, ITaskerProfile } from '../../types';
+import { ICategory } from '../../types';
 
 interface TaskWizardState {
   step: number;
@@ -14,7 +14,6 @@ interface TaskWizardState {
   location: { lat: number; lng: number } | null;
   scheduledAt: string;
   estimatedHours: number;
-  selectedTasker: ITaskerProfile | null;
   price: number;
   aiSuggestion: {
     title?: string;
@@ -37,7 +36,6 @@ const initialState: TaskWizardState = {
   location: null,
   scheduledAt: '',
   estimatedHours: 1,
-  selectedTasker: null,
   price: 0,
   aiSuggestion: null,
 };
@@ -55,11 +53,10 @@ const taskSlice = createSlice({
     setTaskDetails: (state, action: PayloadAction<Partial<TaskWizardState>>) => {
       return { ...state, ...action.payload };
     },
-    setSelectedTasker: (state, action: PayloadAction<ITaskerProfile>) => { state.selectedTasker = action.payload; },
     setAiSuggestion: (state, action: PayloadAction<TaskWizardState['aiSuggestion']>) => { state.aiSuggestion = action.payload; },
     resetWizard: () => initialState,
   },
 });
 
-export const { setStep, setCategory, setSubCategory, setTaskDetails, setSelectedTasker, setAiSuggestion, resetWizard } = taskSlice.actions;
+export const { setStep, setCategory, setSubCategory, setTaskDetails, setAiSuggestion, resetWizard } = taskSlice.actions;
 export default taskSlice.reducer;

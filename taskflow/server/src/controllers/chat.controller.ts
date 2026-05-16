@@ -5,12 +5,10 @@ import { Task } from '../models/Task';
 import { asyncHandler } from '../utils/asyncHandler';
 import { ApiResponse } from '../utils/ApiResponse';
 import { ApiError } from '../utils/ApiError';
-import { IUser } from '../models/User';
-
-const uid = (u: Express.User) => String((u as unknown as IUser)._id);
+import { getUserId } from '../utils/requestHelpers';
 
 export const getConversations = asyncHandler(async (req: Request, res: Response) => {
-  const userId = uid(req.user!);
+  const userId = getUserId(req);
 
   const conversations = await Conversation.find({ participants: userId })
     .populate('participants', 'name avatar')
@@ -22,7 +20,7 @@ export const getConversations = asyncHandler(async (req: Request, res: Response)
 });
 
 export const createOrGetConversation = asyncHandler(async (req: Request, res: Response) => {
-  const userId = uid(req.user!);
+  const userId = getUserId(req);
   const { taskId } = req.body;
 
   if (!taskId) throw new ApiError(400, 'taskId is required');
@@ -57,7 +55,7 @@ export const createOrGetConversation = asyncHandler(async (req: Request, res: Re
 });
 
 export const getMessages = asyncHandler(async (req: Request, res: Response) => {
-  const userId = uid(req.user!);
+  const userId = getUserId(req);
   const { conversationId } = req.params;
   const page = Math.max(1, parseInt(req.query.page as string) || 1);
   const limit = 40;
@@ -82,7 +80,7 @@ export const getMessages = asyncHandler(async (req: Request, res: Response) => {
 });
 
 export const markAsRead = asyncHandler(async (req: Request, res: Response) => {
-  const userId = uid(req.user!);
+  const userId = getUserId(req);
   const { conversationId } = req.params;
 
   await Message.updateMany(

@@ -3,17 +3,18 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import {
   DollarSign, CheckCircle, Clock, Star, ExternalLink,
-  Loader2, AlertTriangle, TrendingUp, ChevronRight, Plus,
-  ShieldAlert, MessageSquare, Bell, User, ThumbsUp,
+  Loader2, AlertTriangle, TrendingUp, ChevronRight, Send,
+  ShieldAlert, MessageSquare, Bell, User, ThumbsUp, X, FileText,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useGetMyProfileQuery } from '../../features/taskers/taskerApi';
-import { useGetAvailableTasksQuery, useGetMyTasksQuery, useGetMyTaskStatsQuery, useUpdateTaskStatusMutation } from '../../features/tasks/taskApi';
+import { useGetAvailableTasksQuery, useGetMyTasksQuery, useGetMyTaskStatsQuery } from '../../features/tasks/taskApi';
 import { useGetPaymentHistoryQuery, useCreateConnectAccountMutation, useGetConnectOnboardingLinkQuery } from '../../features/payments/paymentApi';
 import { useGetReviewsByUserQuery } from '../../features/reviews/reviewApi';
 import { useGetMyDisputesQuery } from '../../features/disputes/disputeApi';
+import { useApplyToTaskMutation, useGetMyApplicationsQuery } from '../../features/applications/applicationApi';
 import { useAppSelector } from '../../app/hooks';
-import { ITask, ICategory, IUser, IReview, IDispute } from '../../types';
+import { ITask, ICategory, IUser, IReview, IDispute, ITaskApplication } from '../../types';
 
 const STATUS_STYLES: Record<string, string> = {
   posted: 'bg-blue-100 text-blue-700',
@@ -21,6 +22,13 @@ const STATUS_STYLES: Record<string, string> = {
   in_progress: 'bg-amber-100 text-amber-700',
   completed: 'bg-green-100 text-green-700',
   cancelled: 'bg-red-100 text-red-600',
+};
+
+const APP_STATUS_STYLES: Record<string, string> = {
+  pending: 'bg-blue-100 text-blue-700',
+  accepted: 'bg-green-100 text-green-700',
+  rejected: 'bg-red-100 text-red-600',
+  withdrawn: 'bg-gray-100 text-gray-500',
 };
 
 const DISPUTE_STATUS_STYLES: Record<string, string> = {
@@ -52,47 +60,170 @@ function StarRow({ rating, size = 'sm' }: { rating: number; size?: 'sm' | 'md' }
   );
 }
 
-function AvailableTaskCard({ task }: { task: ITask }) {
-  const cat = task.categoryId as ICategory;
-  const client = task.clientId as IUser;
-  const { user } = useAppSelector((s) => s.auth);
-  const [updateStatus, { isLoading }] = useUpdateTaskStatusMutation();
+// ── Apply modal ───────────────────────────────────────────────────────────────
+function ApplyModal({ task, onClose }: { task: ITask; onClose: () => void }) {
+  const [applyToTask, { isLoading }] = useApplyToTaskMutation();
+  const [coverLetter, setCoverLetter] = useState('');
+  const [proposedRate, setProposedRate] = useState('');
 
-  const accept = async () => {
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!coverLetter.trim()) { toast.error('Cover letter is required'); return; }
+    if (!proposedRate || Number(proposedRate) < 1) { toast.error('Please enter a valid rate'); return; }
     try {
-      await updateStatus({ id: task._id, status: 'assigned', taskerId: user?._id }).unwrap();
-      toast.success('Task accepted!');
+      await applyToTask({ taskId: task._id, coverLetter, proposedRate: Number(proposedRate) }).unwrap();
+      toast.success('Application submitted!');
+      onClose();
     } catch (err: unknown) {
       const msg = (err as { data?: { message?: string } })?.data?.message;
-      toast.error(msg || 'Failed to accept task');
+      toast.error(msg ?? 'Failed to submit application');
     }
   };
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 p-4 hover:border-primary-300 transition-colors">
-      <div className="flex items-start justify-between gap-3 mb-3">
-        <div className="flex items-start gap-2">
-          <span className="text-xl">{cat?.icon}</span>
-          <div>
-            <p className="font-semibold text-gray-900 text-sm">{task.title}</p>
-            <p className="text-xs text-gray-400">{cat?.name} · {client?.name}</p>
-          </div>
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-xl">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="font-bold text-gray-900">Apply for Task</h3>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+            <X className="w-5 h-5" />
+          </button>
         </div>
-        {task.price && <span className="text-sm font-bold text-green-600">${task.price.toFixed(2)}</span>}
-      </div>
-      <p className="text-xs text-gray-500 line-clamp-2 mb-3">{task.description}</p>
-      <div className="flex items-center justify-between text-xs text-gray-400">
-        <span>📅 {new Date(task.scheduledAt).toLocaleDateString()}</span>
-        <button
-          onClick={accept}
-          disabled={isLoading}
-          className="flex items-center gap-1 bg-primary-700 hover:bg-primary-800 text-white font-medium px-3 py-1.5 rounded-lg transition-colors disabled:opacity-60"
-        >
-          {isLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Plus className="w-3 h-3" />}
-          Accept
-        </button>
+
+        <p className="text-sm text-gray-500 mb-4 bg-gray-50 rounded-lg p-3">{task.title}</p>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Your hourly rate ($)</label>
+            <input
+              type="number"
+              min={1}
+              step={0.5}
+              value={proposedRate}
+              onChange={(e) => setProposedRate(e.target.value)}
+              placeholder="e.g. 35"
+              className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+            />
+            {task.estimatedHours && proposedRate && Number(proposedRate) > 0 && (
+              <p className="text-xs text-gray-400 mt-1">
+                Estimated total: ${(Number(proposedRate) * task.estimatedHours).toFixed(2)} for {task.estimatedHours}h
+              </p>
+            )}
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Cover letter <span className="text-gray-400 font-normal">(max 1000 chars)</span>
+            </label>
+            <textarea
+              rows={4}
+              value={coverLetter}
+              onChange={(e) => setCoverLetter(e.target.value)}
+              maxLength={1000}
+              placeholder="Why are you the best fit for this task? Mention your experience and approach…"
+              className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 resize-none"
+            />
+            <p className="text-xs text-gray-400 mt-1">{coverLetter.length}/1000</p>
+          </div>
+
+          <div className="flex gap-2 pt-2">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 border border-gray-300 rounded-lg py-2.5 text-sm font-medium text-gray-600 hover:bg-gray-50"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={isLoading}
+              className="flex-1 flex items-center justify-center gap-2 bg-primary-700 hover:bg-primary-800 disabled:opacity-60 text-white font-semibold py-2.5 rounded-lg text-sm transition-colors"
+            >
+              {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+              {isLoading ? 'Submitting…' : 'Submit Application'}
+            </button>
+          </div>
+        </form>
       </div>
     </div>
+  );
+}
+
+// ── Available task card ───────────────────────────────────────────────────────
+function AvailableTaskCard({ task }: { task: ITask }) {
+  const cat = task.categoryId as ICategory;
+  const client = task.clientId as IUser;
+  const [showApplyModal, setShowApplyModal] = useState(false);
+
+  return (
+    <>
+      <div className="bg-white rounded-xl border border-gray-200 p-4 hover:border-primary-300 transition-colors">
+        <div className="flex items-start justify-between gap-3 mb-3">
+          <div className="flex items-start gap-2">
+            <span className="text-xl">{cat?.icon}</span>
+            <div>
+              <p className="font-semibold text-gray-900 text-sm">{task.title}</p>
+              <p className="text-xs text-gray-400">{cat?.name} · by {client?.name}</p>
+            </div>
+          </div>
+          {task.estimatedHours && (
+            <span className="text-xs text-gray-400 flex-shrink-0">{task.estimatedHours}h est.</span>
+          )}
+        </div>
+        <p className="text-xs text-gray-500 line-clamp-2 mb-3">{task.description}</p>
+        <div className="flex items-center justify-between text-xs text-gray-400">
+          <span>📅 {new Date(task.scheduledAt).toLocaleDateString()}</span>
+          <div className="flex items-center gap-2">
+            <Link
+              to={`/tasks/${task._id}`}
+              className="text-primary-600 hover:underline text-xs font-medium"
+            >
+              View details
+            </Link>
+            <button
+              onClick={() => setShowApplyModal(true)}
+              className="flex items-center gap-1 bg-primary-700 hover:bg-primary-800 text-white font-medium px-3 py-1.5 rounded-lg transition-colors"
+            >
+              <Send className="w-3 h-3" /> Apply
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {showApplyModal && (
+        <ApplyModal task={task} onClose={() => setShowApplyModal(false)} />
+      )}
+    </>
+  );
+}
+
+// ── My application card ───────────────────────────────────────────────────────
+function MyApplicationCard({ application }: { application: ITaskApplication }) {
+  const task = application.taskId as ITask;
+  const cat = task ? (task.categoryId as ICategory) : null;
+
+  return (
+    <Link
+      to={`/tasks/${typeof task === 'object' ? task._id : task}`}
+      className="flex items-center justify-between gap-3 bg-white rounded-xl border border-gray-200 hover:border-primary-300 p-4 transition-colors"
+    >
+      <div className="flex items-center gap-3 min-w-0">
+        <span className="text-xl">{cat?.icon ?? '📋'}</span>
+        <div className="min-w-0">
+          <p className="font-semibold text-gray-900 truncate text-sm">
+            {typeof task === 'object' ? task.title : 'Task'}
+          </p>
+          <div className="flex items-center gap-2 text-xs text-gray-400 mt-0.5">
+            <span>${application.proposedRate}/hr</span>
+            <span>·</span>
+            <span>{new Date(application.createdAt).toLocaleDateString()}</span>
+          </div>
+        </div>
+      </div>
+      <span className={`text-xs font-semibold px-2.5 py-1 rounded-full flex-shrink-0 ${APP_STATUS_STYLES[application.status] ?? 'bg-gray-100 text-gray-500'}`}>
+        {application.status.charAt(0).toUpperCase() + application.status.slice(1)}
+      </span>
+    </Link>
   );
 }
 
@@ -225,7 +356,6 @@ function ProfileCompletenessCard() {
         </span>
       </div>
 
-      {/* Progress bar */}
       <div className="h-2 bg-gray-100 rounded-full mb-3 overflow-hidden">
         <div
           className={`h-full rounded-full transition-all ${isComplete ? 'bg-green-500' : 'bg-primary-600'}`}
@@ -236,9 +366,7 @@ function ProfileCompletenessCard() {
       <div className="space-y-1.5">
         {checks.map(({ label, done: isDone }) => (
           <div key={label} className="flex items-center gap-2 text-xs">
-            <span className={isDone ? 'text-green-500' : 'text-gray-300'}>
-              {isDone ? '✓' : '○'}
-            </span>
+            <span className={isDone ? 'text-green-500' : 'text-gray-300'}>{isDone ? '✓' : '○'}</span>
             <span className={isDone ? 'text-gray-600' : 'text-gray-400'}>{label}</span>
           </div>
         ))}
@@ -256,7 +384,7 @@ function ProfileCompletenessCard() {
   );
 }
 
-type Tab = 'available' | 'my-tasks' | 'reviews' | 'earnings';
+type Tab = 'available' | 'my-tasks' | 'applications' | 'reviews' | 'earnings';
 
 export default function TaskerDashboard() {
   const { user } = useAppSelector((s) => s.auth);
@@ -267,17 +395,22 @@ export default function TaskerDashboard() {
   const { data: availData, isLoading: availLoading } = useGetAvailableTasksQuery({ limit: 12 }, { skip: activeTab !== 'available' });
   const { data: payHistory = [], isLoading: histLoading } = useGetPaymentHistoryQuery(undefined, { skip: activeTab !== 'earnings' });
   const { data: reviewsData, isLoading: revLoading } = useGetReviewsByUserQuery({ userId: user?._id ?? '' }, { skip: activeTab !== 'reviews' || !user?._id });
+  const { data: myAppsData, isLoading: appsLoading } = useGetMyApplicationsQuery({ limit: 20 }, { skip: activeTab !== 'applications' });
   const reviews = reviewsData?.reviews ?? [];
   const { data: disputes = [] } = useGetMyDisputesQuery();
   const { data: stats } = useGetMyTaskStatsQuery();
 
   const myTasks = myTasksData?.data ?? [];
   const availTasks = (availData as unknown as { data: ITask[] })?.data ?? [];
+  const myApplications = myAppsData?.data ?? [];
   const openDisputes = (disputes as IDispute[]).filter((d) => ['open', 'under_review'].includes(d.status));
+
+  const pendingApps = myApplications.filter((a) => a.status === 'pending').length;
 
   const TABS: { key: Tab; label: string }[] = [
     { key: 'available', label: 'Available' },
     { key: 'my-tasks', label: 'My Tasks' },
+    { key: 'applications', label: `Applications${pendingApps > 0 ? ` (${pendingApps})` : ''}` },
     { key: 'reviews', label: `Reviews${reviews.length > 0 ? ` (${reviews.length})` : ''}` },
     { key: 'earnings', label: 'Earnings' },
   ];
@@ -369,7 +502,8 @@ export default function TaskerDashboard() {
               ) : myTasks.length === 0 ? (
                 <div className="text-center py-16 text-gray-400">
                   <p className="text-3xl mb-3">📋</p>
-                  <p>You haven't accepted any tasks yet.</p>
+                  <p>You haven't been assigned any tasks yet.</p>
+                  <p className="text-sm mt-1">Apply to available tasks to get started.</p>
                 </div>
               ) : (
                 <div className="space-y-3">
@@ -397,6 +531,25 @@ export default function TaskerDashboard() {
                       </Link>
                     );
                   })}
+                </div>
+              )
+            )}
+
+            {/* Applications tab */}
+            {activeTab === 'applications' && (
+              appsLoading ? (
+                <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-primary-700" /></div>
+              ) : myApplications.length === 0 ? (
+                <div className="text-center py-16 text-gray-400">
+                  <FileText className="w-10 h-10 mx-auto mb-3 opacity-30" />
+                  <p>No applications yet.</p>
+                  <p className="text-sm mt-1">Browse available tasks and apply to get started.</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {myApplications.map((app) => (
+                    <MyApplicationCard key={app._id} application={app} />
+                  ))}
                 </div>
               )
             )}

@@ -62,7 +62,11 @@
       "Bash(netstat -ano)",
       "Bash(mv \"c:/Users/User/Documents/GitHub/MachineLearningWithPython/Sessions/TaskFlow/taskrabbit-clone\" \"c:/Users/User/Documents/GitHub/MachineLearningWithPython/Sessions/TaskFlow/taskflow\" && echo \"Renamed successfully\")",
       "Bash(curl -s http://localhost:5000/api/taskers/me -H \"Authorization: Bearer test\")",
-      "Bash(node -e \"const fs=require\\('fs'\\),p='src/server.ts',s=fs.statSync\\(p\\);fs.utimesSync\\(p,s.atime,new Date\\(\\)\\);console.log\\('Triggered restart'\\);\")"
+      "Bash(node -e \"const fs=require\\('fs'\\),p='src/server.ts',s=fs.statSync\\(p\\);fs.utimesSync\\(p,s.atime,new Date\\(\\)\\);console.log\\('Triggered restart'\\);\")",
+      "Bash(Get-ChildItem -Path \"c:\\\\Users\\\\User\\\\Documents\\\\GitHub\\\\MachineLearningWithPython\\\\Sessions\\\\TaskFlow\\\\taskflow\" -Recurse)",
+      "Bash(Select-Object -First 30)",
+      "Bash(Get-ChildItem -Path \"c:\\\\Users\\\\User\\\\Documents\\\\GitHub\\\\MachineLearningWithPython\\\\Sessions\\\\TaskFlow\" -Recurse -Directory)",
+      "Bash(Format-Table FullName)"
     ],
     "additionalDirectories": [
       "/media/abdullahmiraz/Miraz/NeighbourWork",

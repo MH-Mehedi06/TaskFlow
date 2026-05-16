@@ -126,3 +126,33 @@ export const notifyDisputeUpdate = (userId: string, disputeId: string, message: 
     link: `/disputes/${disputeId}`,
     data: { disputeId },
   });
+
+export const notifyNewApplication = (clientId: string, taskId: string, taskTitle: string, taskerName: string) =>
+  createNotification({
+    userId: clientId,
+    type: 'task_application',
+    title: 'New application received',
+    body: `${taskerName} applied to: ${taskTitle}`,
+    link: `/tasks/${taskId}`,
+    data: { taskId },
+  });
+
+export const notifyApplicationAccepted = (taskerId: string, taskId: string, taskTitle: string) =>
+  createNotification({
+    userId: taskerId,
+    type: 'application_accepted',
+    title: 'Application accepted!',
+    body: `Your application was accepted for: ${taskTitle}`,
+    link: `/tasks/${taskId}`,
+    data: { taskId },
+  });
+
+export const notifyApplicationRejected = (taskerId: string, taskId: string, taskTitle: string) =>
+  createNotification({
+    userId: taskerId,
+    type: 'application_rejected',
+    title: 'Application not selected',
+    body: `Your application was not selected for: ${taskTitle}`,
+    link: `/tasks/${taskId}`,
+    data: { taskId },
+  });

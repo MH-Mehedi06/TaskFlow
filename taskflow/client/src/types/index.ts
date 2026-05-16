@@ -73,6 +73,27 @@ export interface ITask {
   createdAt: string;
 }
 
+export type ApplicationStatus = 'pending' | 'accepted' | 'rejected' | 'withdrawn';
+
+export interface ITaskApplication {
+  _id: string;
+  taskId: ITask | string;
+  taskerId: IUser | string;
+  status: ApplicationStatus;
+  coverLetter: string;
+  proposedRate: number;
+  taskerProfile?: {
+    avgRating: number;
+    totalReviews: number;
+    totalTasksCompleted: number;
+    headline: string;
+    isElite: boolean;
+    backgroundChecked: boolean;
+  } | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface IMessage {
   _id: string;
   conversationId: string;

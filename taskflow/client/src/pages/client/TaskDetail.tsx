@@ -1,12 +1,24 @@
 import { useState } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
-import { ArrowLeft, Calendar, MapPin, Clock, AlertCircle, MessageSquare, X, Loader2, CheckCircle, Star, ShieldAlert, PlayCircle } from 'lucide-react';
+import {
+  ArrowLeft, Calendar, MapPin, Clock, AlertCircle, MessageSquare,
+  X, Loader2, CheckCircle, Star, ShieldAlert, Users, Award, Shield,
+  ChevronDown, ChevronUp, Send,
+} from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useGetTaskByIdQuery, useCancelTaskMutation, useUpdateTaskStatusMutation } from '../../features/tasks/taskApi';
 import { useGetReviewByTaskQuery, useCreateReviewMutation } from '../../features/reviews/reviewApi';
+import {
+  useGetApplicationsQuery,
+  useAcceptApplicationMutation,
+  useRejectApplicationMutation,
+  useCheckMyApplicationQuery,
+  useApplyToTaskMutation,
+  useWithdrawApplicationMutation,
+} from '../../features/applications/applicationApi';
 import { useAppSelector } from '../../app/hooks';
-import { IUser, ICategory, ITaskerProfile } from '../../types';
+import { IUser, ICategory, ITaskApplication } from '../../types';
 
 const STATUS_STYLES: Record<string, string> = {
   posted: 'bg-blue-100 text-blue-700',
@@ -17,8 +29,8 @@ const STATUS_STYLES: Record<string, string> = {
 };
 
 const TIMELINE: { status: string; label: string; desc: string }[] = [
-  { status: 'posted', label: 'Task Posted', desc: 'Looking for a Tasker' },
-  { status: 'assigned', label: 'Tasker Assigned', desc: 'Tasker has accepted' },
+  { status: 'posted', label: 'Task Posted', desc: 'Accepting applications from Taskers' },
+  { status: 'assigned', label: 'Tasker Assigned', desc: 'Tasker has been selected' },
   { status: 'in_progress', label: 'In Progress', desc: 'Work has started' },
   { status: 'completed', label: 'Completed', desc: 'Task is done' },
 ];
@@ -37,6 +49,317 @@ function StarRating({ value, onChange }: { value: number; onChange: (v: number) 
   );
 }
 
+// ── Applications panel (client view) ─────────────────────────────────────────
+function ApplicationsPanel({ taskId, estimatedHours }: { taskId: string; estimatedHours?: number }) {
+  const { data: applications = [], isLoading } = useGetApplicationsQuery(taskId);
+  const [acceptApplication, { isLoading: accepting }] = useAcceptApplicationMutation();
+  const [rejectApplication, { isLoading: rejecting }] = useRejectApplicationMutation();
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+
+  const handleAccept = async (applicationId: string) => {
+    try {
+      await acceptApplication({ taskId, applicationId }).unwrap();
+      toast.success('Tasker accepted! Task is now assigned.');
+    } catch (err: unknown) {
+      const msg = (err as { data?: { message?: string } })?.data?.message;
+      toast.error(msg ?? 'Failed to accept application');
+    }
+  };
+
+  const handleReject = async (applicationId: string) => {
+    try {
+      await rejectApplication({ taskId, applicationId }).unwrap();
+      toast.success('Application rejected');
+    } catch {
+      toast.error('Failed to reject application');
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="bg-white rounded-2xl border border-gray-200 p-6">
+        <div className="flex items-center justify-center py-8">
+          <Loader2 className="w-6 h-6 animate-spin text-primary-700" />
+        </div>
+      </div>
+    );
+  }
+
+  const pending = applications.filter((a) => a.status === 'pending');
+
+  return (
+    <div className="bg-white rounded-2xl border border-gray-200 p-6">
+      <div className="flex items-center justify-between mb-5">
+        <h2 className="font-bold text-gray-900 text-lg flex items-center gap-2">
+          <Users className="w-5 h-5 text-primary-600" />
+          Applications
+        </h2>
+        <span className="text-sm bg-primary-50 text-primary-700 font-semibold px-2.5 py-1 rounded-full">
+          {pending.length} pending
+        </span>
+      </div>
+
+      {applications.length === 0 ? (
+        <div className="text-center py-8 border border-dashed border-gray-200 rounded-xl">
+          <Users className="w-8 h-8 text-gray-300 mx-auto mb-2" />
+          <p className="text-sm text-gray-500">No applications yet.</p>
+          <p className="text-xs text-gray-400 mt-1">Taskers matching your category will apply soon.</p>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {applications.map((app) => {
+            const tasker = app.taskerId as IUser | string;
+            const profile = app.taskerProfile;
+            const isExpanded = expandedId === app._id;
+            const estimatedTotal = estimatedHours ? app.proposedRate * estimatedHours : null;
+            const isPending = app.status === 'pending';
+
+            return (
+              <div
+                key={app._id}
+                className={`border rounded-xl overflow-hidden transition-colors ${
+                  app.status === 'accepted' ? 'border-green-300 bg-green-50' :
+                  app.status === 'rejected' ? 'border-gray-200 bg-gray-50 opacity-60' :
+                  'border-gray-200'
+                }`}
+              >
+                {/* Application header */}
+                <div className="p-4">
+                  <div className="flex items-start gap-3">
+                    <img
+                      src={typeof tasker === 'object' && tasker?.avatar
+                        ? tasker.avatar
+                        : `https://ui-avatars.com/api/?name=${encodeURIComponent(typeof tasker === 'object' ? tasker?.name ?? 'T' : 'T')}&background=1D4ED8&color=fff`}
+                      alt=""
+                      className="w-11 h-11 rounded-full object-cover flex-shrink-0"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-semibold text-gray-900 text-sm">
+                          {typeof tasker === 'object' ? tasker?.name : 'Tasker'}
+                        </span>
+                        {profile?.isElite && (
+                          <span className="flex items-center gap-0.5 text-xs text-yellow-600 bg-yellow-50 px-1.5 py-0.5 rounded-full">
+                            <Award className="w-3 h-3" /> Elite
+                          </span>
+                        )}
+                        {profile?.backgroundChecked && (
+                          <span className="flex items-center gap-0.5 text-xs text-green-600 bg-green-50 px-1.5 py-0.5 rounded-full">
+                            <Shield className="w-3 h-3" /> Verified
+                          </span>
+                        )}
+                        {app.status !== 'pending' && (
+                          <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+                            app.status === 'accepted' ? 'bg-green-100 text-green-700' :
+                            app.status === 'rejected' ? 'bg-red-100 text-red-600' :
+                            'bg-gray-100 text-gray-500'
+                          }`}>
+                            {app.status.charAt(0).toUpperCase() + app.status.slice(1)}
+                          </span>
+                        )}
+                      </div>
+                      {profile && (
+                        <div className="flex items-center gap-3 text-xs text-gray-500 mt-0.5">
+                          <span className="flex items-center gap-0.5">
+                            <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
+                            {profile.avgRating.toFixed(1)} ({profile.totalReviews})
+                          </span>
+                          <span>{profile.totalTasksCompleted} tasks</span>
+                        </div>
+                      )}
+                    </div>
+                    <div className="text-right flex-shrink-0">
+                      <p className="font-bold text-primary-700 text-sm">${app.proposedRate}/hr</p>
+                      {estimatedTotal && (
+                        <p className="text-xs text-gray-400">~${estimatedTotal.toFixed(0)} total</p>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Toggle cover letter */}
+                  <button
+                    onClick={() => setExpandedId(isExpanded ? null : app._id)}
+                    className="flex items-center gap-1 text-xs text-primary-600 hover:text-primary-800 mt-2 ml-14"
+                  >
+                    {isExpanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                    {isExpanded ? 'Hide cover letter' : 'Read cover letter'}
+                  </button>
+
+                  {isExpanded && (
+                    <div className="mt-3 ml-14 bg-gray-50 rounded-lg p-3 text-sm text-gray-600 leading-relaxed">
+                      {app.coverLetter}
+                    </div>
+                  )}
+
+                  {/* Actions for pending */}
+                  {isPending && (
+                    <div className="flex gap-2 mt-3 ml-14">
+                      <button
+                        onClick={() => handleAccept(app._id)}
+                        disabled={accepting || rejecting}
+                        className="flex-1 flex items-center justify-center gap-1.5 bg-primary-700 hover:bg-primary-800 disabled:opacity-60 text-white font-semibold py-2 rounded-lg text-xs transition-colors"
+                      >
+                        {accepting ? <Loader2 className="w-3 h-3 animate-spin" /> : <CheckCircle className="w-3 h-3" />}
+                        Accept
+                      </button>
+                      <button
+                        onClick={() => handleReject(app._id)}
+                        disabled={accepting || rejecting}
+                        className="flex-1 flex items-center justify-center gap-1.5 border border-gray-300 text-gray-600 hover:bg-gray-50 disabled:opacity-60 font-medium py-2 rounded-lg text-xs transition-colors"
+                      >
+                        <X className="w-3 h-3" /> Decline
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Apply panel (tasker view) ─────────────────────────────────────────────────
+function TaskerApplyPanel({ taskId }: { taskId: string }) {
+  const { data: myApp, isLoading } = useCheckMyApplicationQuery(taskId);
+  const [applyToTask, { isLoading: applying }] = useApplyToTaskMutation();
+  const [withdrawApplication, { isLoading: withdrawing }] = useWithdrawApplicationMutation();
+  const [showForm, setShowForm] = useState(false);
+  const [coverLetter, setCoverLetter] = useState('');
+  const [proposedRate, setProposedRate] = useState('');
+
+  const handleApply = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!coverLetter.trim()) { toast.error('Cover letter is required'); return; }
+    if (!proposedRate || Number(proposedRate) < 1) { toast.error('Please enter a valid rate'); return; }
+    try {
+      await applyToTask({ taskId, coverLetter, proposedRate: Number(proposedRate) }).unwrap();
+      toast.success('Application submitted!');
+      setShowForm(false);
+      setCoverLetter('');
+      setProposedRate('');
+    } catch (err: unknown) {
+      const msg = (err as { data?: { message?: string } })?.data?.message;
+      toast.error(msg ?? 'Failed to submit application');
+    }
+  };
+
+  const handleWithdraw = async () => {
+    try {
+      await withdrawApplication(taskId).unwrap();
+      toast.success('Application withdrawn');
+    } catch {
+      toast.error('Failed to withdraw application');
+    }
+  };
+
+  if (isLoading) return null;
+
+  // Already applied
+  if (myApp) {
+    return (
+      <div className="bg-white rounded-2xl border border-gray-200 p-5">
+        <h3 className="font-bold text-gray-900 mb-3 flex items-center gap-2">
+          <Send className="w-4 h-4 text-primary-600" /> Your Application
+        </h3>
+        <div className={`text-xs font-semibold px-2.5 py-1 rounded-full inline-block mb-3 ${
+          myApp.status === 'pending' ? 'bg-blue-100 text-blue-700' :
+          myApp.status === 'accepted' ? 'bg-green-100 text-green-700' :
+          myApp.status === 'rejected' ? 'bg-red-100 text-red-600' :
+          'bg-gray-100 text-gray-500'
+        }`}>
+          {myApp.status.charAt(0).toUpperCase() + myApp.status.slice(1)}
+        </div>
+        <p className="text-sm text-gray-500 mb-1">Proposed rate: <span className="font-semibold text-gray-800">${myApp.proposedRate}/hr</span></p>
+        <p className="text-sm text-gray-500 mb-3">Submitted: {new Date(myApp.createdAt).toLocaleDateString()}</p>
+        {myApp.status === 'pending' && (
+          <button
+            onClick={handleWithdraw}
+            disabled={withdrawing}
+            className="w-full flex items-center justify-center gap-2 border border-gray-300 text-gray-600 hover:bg-gray-50 disabled:opacity-60 font-medium py-2 rounded-lg text-sm transition-colors"
+          >
+            {withdrawing ? <Loader2 className="w-3 h-3 animate-spin" /> : <X className="w-3 h-3" />}
+            Withdraw Application
+          </button>
+        )}
+        {myApp.status === 'accepted' && (
+          <p className="text-sm text-green-600 font-medium">Congratulations! You've been selected for this task.</p>
+        )}
+      </div>
+    );
+  }
+
+  // Haven't applied yet
+  return (
+    <div className="bg-white rounded-2xl border border-gray-200 p-5">
+      {!showForm ? (
+        <>
+          <h3 className="font-bold text-gray-900 mb-1">Interested in this task?</h3>
+          <p className="text-sm text-gray-500 mb-4">Submit your application with your rate and a brief cover letter.</p>
+          <button
+            onClick={() => setShowForm(true)}
+            className="w-full flex items-center justify-center gap-2 bg-primary-700 hover:bg-primary-800 text-white font-semibold py-2.5 rounded-xl text-sm transition-colors"
+          >
+            <Send className="w-4 h-4" /> Apply Now
+          </button>
+        </>
+      ) : (
+        <form onSubmit={handleApply} className="space-y-4">
+          <h3 className="font-bold text-gray-900">Apply for this Task</h3>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Your hourly rate ($)</label>
+            <input
+              type="number"
+              min={1}
+              step={0.5}
+              value={proposedRate}
+              onChange={(e) => setProposedRate(e.target.value)}
+              placeholder="e.g. 35"
+              className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Cover letter <span className="text-gray-400 font-normal">(max 1000 chars)</span>
+            </label>
+            <textarea
+              rows={4}
+              value={coverLetter}
+              onChange={(e) => setCoverLetter(e.target.value)}
+              maxLength={1000}
+              placeholder="Tell the client why you're the right person for this task…"
+              className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 resize-none"
+            />
+            <p className="text-xs text-gray-400 mt-1">{coverLetter.length}/1000</p>
+          </div>
+
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => setShowForm(false)}
+              className="flex-1 border border-gray-300 rounded-lg py-2.5 text-sm font-medium text-gray-600 hover:bg-gray-50"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={applying}
+              className="flex-1 bg-primary-700 hover:bg-primary-800 disabled:opacity-60 text-white font-semibold py-2.5 rounded-lg text-sm transition-colors"
+            >
+              {applying ? 'Submitting…' : 'Submit Application'}
+            </button>
+          </div>
+        </form>
+      )}
+    </div>
+  );
+}
+
+// ── Main component ─────────────────────────────────────────────────────────────
 export default function TaskDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -98,14 +421,15 @@ export default function TaskDetail() {
   const currentIdx = STATUS_ORDER.indexOf(task.status);
 
   const taskerUserId = tasker
-    ? typeof tasker === 'object' ? (tasker as IUser)._id : String(tasker)
+    ? typeof tasker === 'object' ? tasker._id : String(tasker)
     : null;
   const clientUserId = client
-    ? typeof client === 'object' ? (client as IUser)._id : String(client)
+    ? typeof client === 'object' ? client._id : String(client)
     : null;
   const isTasker = !!(user && (user._id === taskerUserId || user.role === 'admin'));
   const isClient = !!(user && user._id === clientUserId);
   const canUpdateStatus = isTasker || isClient;
+  const isPosted = task.status === 'posted';
 
   const handleStatusUpdate = async (status: string) => {
     try {
@@ -178,6 +502,11 @@ export default function TaskDetail() {
                 </div>
               ) : null;
             })()}
+
+            {/* Applications panel — client sees this when task is posted */}
+            {isClient && isPosted && id && (
+              <ApplicationsPanel taskId={id} estimatedHours={task.estimatedHours} />
+            )}
 
             {/* Status timeline */}
             {task.status !== 'cancelled' && (
@@ -294,13 +623,18 @@ export default function TaskDetail() {
                     {task.taskerEarnings && <div className="flex justify-between"><span className="text-gray-500">Tasker earns</span><span>${task.taskerEarnings.toFixed(2)}</span></div>}
                   </>
                 ) : (
-                  <p className="text-gray-400">Pricing to be confirmed</p>
+                  <p className="text-gray-400">Pricing confirmed after tasker is selected</p>
                 )}
               </div>
             </div>
 
-            {/* Tasker card */}
-            {tasker ? (
+            {/* Tasker apply panel — shown to taskers when task is posted */}
+            {user?.role === 'tasker' && isPosted && id && (
+              <TaskerApplyPanel taskId={id} />
+            )}
+
+            {/* Tasker card — shown when assigned */}
+            {tasker && !isPosted ? (
               <div className="bg-white rounded-2xl border border-gray-200 p-5">
                 <h3 className="font-bold text-gray-900 mb-3">Your Tasker</h3>
                 <div className="flex items-center gap-3 mb-4">
@@ -321,13 +655,13 @@ export default function TaskDetail() {
                   <MessageSquare className="w-4 h-4" /> Message Tasker
                 </Link>
               </div>
-            ) : (
+            ) : !tasker && !isPosted ? (
               <div className="bg-white rounded-2xl border border-gray-200 p-5 text-center">
-                <p className="text-sm text-gray-500">Waiting for a Tasker to accept your task.</p>
+                <p className="text-sm text-gray-500">Waiting for a Tasker to be assigned.</p>
               </div>
-            )}
+            ) : null}
 
-            {/* Status actions — visible to client, assigned tasker, and admin */}
+            {/* Status actions */}
             {canUpdateStatus && task.status === 'assigned' && (
               <button
                 onClick={() => handleStatusUpdate('in_progress')}
@@ -350,8 +684,8 @@ export default function TaskDetail() {
               </button>
             )}
 
-            {/* Actions */}
-            {canCancel && (
+            {/* Cancel task */}
+            {canCancel && isClient && (
               <button
                 onClick={() => setShowCancelModal(true)}
                 className="w-full flex items-center justify-center gap-2 border border-red-300 text-red-600 hover:bg-red-50 font-medium py-2.5 rounded-xl text-sm transition-colors"
@@ -360,7 +694,7 @@ export default function TaskDetail() {
               </button>
             )}
 
-            {/* Raise dispute — available on in-progress / assigned tasks */}
+            {/* Raise dispute */}
             {['assigned', 'in_progress'].includes(task.status) && tasker && (
               <Link
                 to={`/tasks/${id}/dispute`}

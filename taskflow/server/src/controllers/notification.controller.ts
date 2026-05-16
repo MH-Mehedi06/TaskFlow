@@ -1,14 +1,12 @@
 import { Request, Response } from 'express';
 import { Notification } from '../models/Notification';
-import { IUser } from '../models/User';
 import { asyncHandler } from '../utils/asyncHandler';
 import { ApiResponse } from '../utils/ApiResponse';
 import { ApiError } from '../utils/ApiError';
-
-const uid = (u: Express.User) => String((u as unknown as IUser)._id);
+import { getUserId } from '../utils/requestHelpers';
 
 export const getNotifications = asyncHandler(async (req: Request, res: Response) => {
-  const userId = uid(req.user!);
+  const userId = getUserId(req);
   const page = Math.max(1, parseInt(req.query.page as string) || 1);
   const limit = 20;
 
@@ -26,13 +24,13 @@ export const getNotifications = asyncHandler(async (req: Request, res: Response)
 });
 
 export const getUnreadCount = asyncHandler(async (req: Request, res: Response) => {
-  const userId = uid(req.user!);
+  const userId = getUserId(req);
   const count = await Notification.countDocuments({ userId, isRead: false });
   return res.json(new ApiResponse(200, count));
 });
 
 export const markRead = asyncHandler(async (req: Request, res: Response) => {
-  const userId = uid(req.user!);
+  const userId = getUserId(req);
   const notif = await Notification.findOneAndUpdate(
     { _id: req.params.id, userId },
     { isRead: true },
@@ -43,13 +41,13 @@ export const markRead = asyncHandler(async (req: Request, res: Response) => {
 });
 
 export const markAllRead = asyncHandler(async (req: Request, res: Response) => {
-  const userId = uid(req.user!);
+  const userId = getUserId(req);
   await Notification.updateMany({ userId, isRead: false }, { isRead: true });
   return res.json(new ApiResponse(200, null, 'All notifications marked as read'));
 });
 
 export const deleteNotification = asyncHandler(async (req: Request, res: Response) => {
-  const userId = uid(req.user!);
+  const userId = getUserId(req);
   const notif = await Notification.findOneAndDelete({ _id: req.params.id, userId });
   if (!notif) throw new ApiError(404, 'Notification not found');
   return res.json(new ApiResponse(200, null, 'Deleted'));

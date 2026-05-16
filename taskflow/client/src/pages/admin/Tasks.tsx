@@ -81,11 +81,12 @@ function AssignTaskerModal({
             <p className="text-center text-sm text-gray-400 py-6">No taskers found.</p>
           ) : taskers.map((t: ITaskerProfile) => {
             const user = t.userId as IUser;
-            const isSelected = selectedId === String(t.userId?._id ?? t.userId);
+            const resolvedUserId = typeof t.userId === 'object' ? String(t.userId._id) : String(t.userId);
+            const isSelected = selectedId === resolvedUserId;
             return (
               <div
                 key={t._id}
-                onClick={() => setSelectedId(String(t.userId?._id ?? t.userId))}
+                onClick={() => setSelectedId(resolvedUserId)}
                 className={`flex items-center gap-3 p-3 rounded-xl border-2 cursor-pointer transition-colors ${
                   isSelected ? 'border-primary-600 bg-primary-50' : 'border-gray-200 hover:border-gray-300'
                 }`}

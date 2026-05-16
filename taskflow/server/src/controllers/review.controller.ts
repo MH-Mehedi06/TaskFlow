@@ -1,14 +1,12 @@
 import { Request, Response } from 'express';
 import { Review } from '../models/Review';
 import { Task } from '../models/Task';
-import { IUser } from '../models/User';
 import { asyncHandler } from '../utils/asyncHandler';
 import { ApiResponse } from '../utils/ApiResponse';
 import { ApiError } from '../utils/ApiError';
 import { notifyReviewRequest } from '../services/notification.service';
 import { env } from '../config/env';
-
-const uid = (u: Express.User) => String((u as unknown as IUser)._id);
+import { getUserId } from '../utils/requestHelpers';
 
 // ── AI moderation (lightweight — real AI lives in Step 12) ─────────────────
 async function moderateReview(comment: string): Promise<{ score: number; reason: string; approved: boolean }> {
@@ -38,13 +36,14 @@ async function moderateReview(comment: string): Promise<{ score: number; reason:
     });
     return JSON.parse(resp.choices[0].message.content ?? '{"score":0.8,"reason":"AI check","approved":true}');
   } catch {
-    return { score: 0.8, reason: 'AI unavailable — default approved', approved: true };
+    // Fail safe: hold for manual admin review rather than auto-publishing
+    return { score: 0, reason: 'AI unavailable — held for manual review', approved: false };
   }
 }
 
 // POST /api/reviews
 export const createReview = asyncHandler(async (req: Request, res: Response) => {
-  const reviewerId = uid(req.user!);
+  const reviewerId = getUserId(req);
   const { taskId, rating, comment, photos } = req.body;
 
   if (!taskId || !rating || !comment) throw new ApiError(400, 'taskId, rating, and comment are required');
@@ -117,7 +116,7 @@ export const getReviewByTask = asyncHandler(async (req: Request, res: Response) 
 
 // PUT /api/reviews/:id/reply  — tasker replies
 export const replyToReview = asyncHandler(async (req: Request, res: Response) => {
-  const taskerId = uid(req.user!);
+  const taskerId = getUserId(req);
   const { reply } = req.body;
   if (!reply?.trim()) throw new ApiError(400, 'Reply text required');
 
