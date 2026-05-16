@@ -21,13 +21,13 @@ const router = Router();
 router.get('/', httpCache(60), cacheResponse(120), getTaskers);
 router.get('/search', semanticSearchTaskers);
 router.get('/semantic-search', semanticSearchTaskers);
-router.get('/me', requireAuth, requireRole('tasker'), getMyProfile);
+router.get('/me', requireAuth, requireRole('tasker', 'admin'), getMyProfile);
 router.get('/:id', getTaskerById);
 
 router.put(
   '/me/profile',
   requireAuth,
-  requireRole('tasker'),
+  requireRole('tasker', 'admin'),
   [
     body('headline').optional().isLength({ max: 100 }).withMessage('Headline max 100 characters'),
     body('bio').optional().isLength({ max: 1000 }).withMessage('Bio max 1000 characters'),
@@ -36,9 +36,9 @@ router.put(
   updateMyProfile
 );
 
-router.put('/me/availability', requireAuth, requireRole('tasker'), updateAvailability);
-router.post('/me/avatar', requireAuth, upload.single('avatar'), uploadAvatar);
-router.post('/me/portfolio', requireAuth, requireRole('tasker'), upload.single('image'), uploadPortfolioImage);
-router.delete('/me/portfolio', requireAuth, requireRole('tasker'), deletePortfolioImage);
+router.put('/me/availability', requireAuth, requireRole('tasker', 'admin'), updateAvailability);
+router.post('/me/avatar', requireAuth, uploadAvatar);
+router.post('/me/portfolio', requireAuth, requireRole('tasker', 'admin'), upload.single('image'), uploadPortfolioImage);
+router.delete('/me/portfolio', requireAuth, requireRole('tasker', 'admin'), deletePortfolioImage);
 
 export default router;

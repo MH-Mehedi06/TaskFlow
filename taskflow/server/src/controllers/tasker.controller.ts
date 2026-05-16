@@ -80,11 +80,11 @@ export const updateMyProfile = asyncHandler(async (req: Request, res: Response) 
 
   const profile = await TaskerProfile.findOneAndUpdate(
     { userId },
-    { bio, headline, skills, hourlyRates, serviceRadius, certifications },
-    { new: true, runValidators: true }
+    { $set: { bio, headline, skills, hourlyRates, serviceRadius, certifications } },
+    { new: true, upsert: true }
   ).populate('skills', 'name slug icon');
 
-  if (!profile) throw new ApiError(404, 'Profile not found');
+  if (!profile) throw new ApiError(500, 'Failed to save profile');
 
   // Regenerate embedding + invalidate public caches in background (non-blocking)
   const skillNames = (profile.skills as unknown as { name: string }[]).map((s) => s.name);
@@ -102,17 +102,26 @@ export const updateAvailability = asyncHandler(async (req: Request, res: Respons
   const userId = getUserId(req.user);
   const { availability } = req.body;
 
-  const profile = await TaskerProfile.findOneAndUpdate({ userId }, { availability }, { new: true });
-  if (!profile) throw new ApiError(404, 'Profile not found');
+  const profile = await TaskerProfile.findOneAndUpdate(
+    { userId },
+    { $set: { availability } },
+    { new: true, upsert: true }
+  );
+  if (!profile) throw new ApiError(500, 'Failed to save availability');
   res.json(new ApiResponse(200, profile, 'Availability updated'));
 });
 
 export const uploadAvatar = asyncHandler(async (req: Request, res: Response) => {
   if (!req.user) throw new ApiError(401, 'Unauthorized');
-  if (!req.file) throw new ApiError(400, 'No file uploaded');
   const userId = getUserId(req.user);
+  const { base64 } = req.body;
+  if (!base64 || typeof base64 !== 'string') throw new ApiError(400, 'No image provided');
 
-  const url = await uploadBuffer(req.file.buffer, 'avatars', `user_${userId}`);
+  // Strip the data URL prefix (e.g. "data:image/jpeg;base64,") to get raw base64
+  const raw = base64.includes(',') ? base64.split(',')[1] : base64;
+  const buffer = Buffer.from(raw, 'base64');
+
+  const url = await uploadBuffer(buffer, 'avatars', `user_${userId}`);
   await User.findByIdAndUpdate(userId, { avatar: url });
   res.json(new ApiResponse(200, { avatar: url }, 'Avatar uploaded'));
 });

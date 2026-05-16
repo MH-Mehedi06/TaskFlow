@@ -97,14 +97,23 @@ export default function TaskDetail() {
   const canCancel = !['completed', 'cancelled'].includes(task.status);
   const currentIdx = STATUS_ORDER.indexOf(task.status);
 
-  const isTasker = user?._id === (tasker as IUser)?._id || user?.role === 'admin';
+  const taskerUserId = tasker
+    ? typeof tasker === 'object' ? (tasker as IUser)._id : String(tasker)
+    : null;
+  const clientUserId = client
+    ? typeof client === 'object' ? (client as IUser)._id : String(client)
+    : null;
+  const isTasker = !!(user && (user._id === taskerUserId || user.role === 'admin'));
+  const isClient = !!(user && user._id === clientUserId);
+  const canUpdateStatus = isTasker || isClient;
 
   const handleStatusUpdate = async (status: string) => {
     try {
       await updateTaskStatus({ id: id!, status }).unwrap();
-      toast.success(`Task marked as ${status.replace('_', ' ')}`);
-    } catch {
-      toast.error('Failed to update task status');
+      toast.success(`Task marked as ${status.replace(/_/g, ' ')}`);
+    } catch (err: unknown) {
+      const msg = (err as { data?: { message?: string } })?.data?.message;
+      toast.error(msg || 'Failed to update task status');
     }
   };
 
@@ -318,8 +327,8 @@ export default function TaskDetail() {
               </div>
             )}
 
-            {/* Tasker status actions */}
-            {isTasker && task.status === 'assigned' && (
+            {/* Status actions — visible to client, assigned tasker, and admin */}
+            {canUpdateStatus && task.status === 'assigned' && (
               <button
                 onClick={() => handleStatusUpdate('in_progress')}
                 disabled={updatingStatus}
@@ -330,7 +339,7 @@ export default function TaskDetail() {
               </button>
             )}
 
-            {isTasker && task.status === 'in_progress' && (
+            {canUpdateStatus && task.status === 'in_progress' && (
               <button
                 onClick={() => handleStatusUpdate('completed')}
                 disabled={updatingStatus}

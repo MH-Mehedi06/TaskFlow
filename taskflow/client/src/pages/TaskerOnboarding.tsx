@@ -4,7 +4,9 @@ import { Helmet } from 'react-helmet-async';
 import { CheckCircle, ChevronRight, ChevronLeft, Upload, Loader2, Star } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useGetCategoriesQuery } from '../features/categories/categoryApi';
-import { useUpdateProfileMutation, useUpdateAvailabilityMutation, useUploadAvatarMutation } from '../features/taskers/taskerApi';
+import { useUpdateProfileMutation, useUpdateAvailabilityMutation } from '../features/taskers/taskerApi';
+import { updateUser } from '../features/auth/authSlice';
+import { useAppDispatch, useAppSelector } from '../app/hooks';
 import { ICategory } from '../types';
 
 const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -49,11 +51,13 @@ export default function TaskerOnboarding() {
     avatarPreview: '',
   });
   const fileRef = useRef<HTMLInputElement>(null);
+  const dispatch = useAppDispatch();
+  const { accessToken } = useAppSelector((s) => s.auth);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
 
   const { data: categories = [] } = useGetCategoriesQuery();
   const [updateProfile, { isLoading: savingProfile }] = useUpdateProfileMutation();
   const [updateAvailability, { isLoading: savingAvail }] = useUpdateAvailabilityMutation();
-  const [uploadAvatar, { isLoading: uploadingAvatar }] = useUploadAvatarMutation();
 
   const isSaving = savingProfile || savingAvail || uploadingAvatar;
 
@@ -101,6 +105,11 @@ export default function TaskerOnboarding() {
   const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('Image must be under 5 MB');
+      e.target.value = '';
+      return;
+    }
     setData((prev) => ({
       ...prev,
       avatarFile: file,
@@ -114,6 +123,7 @@ export default function TaskerOnboarding() {
   };
 
   const handleFinish = async () => {
+    // Step 1: Save profile
     try {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       await updateProfile({
@@ -123,20 +133,58 @@ export default function TaskerOnboarding() {
         hourlyRates: data.hourlyRates,
         serviceRadius: data.serviceRadius,
       }).unwrap();
-
-      await updateAvailability({ availability: data.availability }).unwrap();
-
-      if (data.avatarFile) {
-        const form = new FormData();
-        form.append('avatar', data.avatarFile);
-        await uploadAvatar(form).unwrap();
-      }
-
-      toast.success('Profile set up! Welcome aboard.');
-      navigate('/tasker/dashboard');
-    } catch {
-      toast.error('Something went wrong. Please try again.');
+    } catch (err: unknown) {
+      const msg = (err as { data?: { message?: string } })?.data?.message;
+      toast.error(`Profile save failed: ${msg || 'Server error'}`);
+      return;
     }
+
+    // Step 2: Save availability
+    try {
+      await updateAvailability({ availability: data.availability }).unwrap();
+    } catch (err: unknown) {
+      const msg = (err as { data?: { message?: string } })?.data?.message;
+      toast.error(`Availability save failed: ${msg || 'Server error'}`);
+      return;
+    }
+
+    // Step 3: Upload avatar via direct fetch (optional — don't block setup if it fails)
+    if (data.avatarFile) {
+      setUploadingAvatar(true);
+      try {
+        const base64 = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = (e) => resolve(e.target?.result as string);
+          reader.onerror = () => reject(new Error('Could not read image file'));
+          reader.readAsDataURL(data.avatarFile!);
+        });
+
+        const res = await fetch('/api/taskers/me/avatar', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+          },
+          body: JSON.stringify({ base64, mimeType: data.avatarFile.type }),
+        });
+
+        const json = await res.json().catch(() => ({}));
+        if (res.ok) {
+          const avatarUrl: string | undefined = json?.data?.avatar;
+          if (avatarUrl) dispatch(updateUser({ avatar: avatarUrl }));
+        } else {
+          toast.error(`Photo upload failed: ${json?.message || res.statusText} — continuing anyway`);
+        }
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : 'Network error';
+        toast.error(`Photo upload failed: ${msg} — continuing anyway`);
+      } finally {
+        setUploadingAvatar(false);
+      }
+    }
+
+    toast.success('Profile set up! Welcome aboard.');
+    navigate('/tasker/dashboard');
   };
 
   return (

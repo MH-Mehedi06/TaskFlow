@@ -228,24 +228,28 @@ export const updateTaskStatus = asyncHandler(async (req: Request, res: Response)
   const isTasker = task.taskerId ? String(task.taskerId) === userId : false;
   const isAdmin = role === 'admin';
 
+  // Any authenticated user can accept a posted task that has no tasker yet
+  const isOpenAcceptance = status === 'assigned' && !task.taskerId && task.status === 'posted';
+
+  if (!isAdmin && !isClient && !isTasker && !isOpenAcceptance) {
+    throw new ApiError(403, 'Access denied');
+  }
+
+  // Validate the status transition
   const ALLOWED: Record<string, string[]> = {
     posted: ['assigned'],
     assigned: ['in_progress'],
     in_progress: ['completed'],
   };
-
-  if (!isAdmin) {
-    const allowed = ALLOWED[task.status] ?? [];
-    if (!allowed.includes(status)) throw new ApiError(400, `Cannot transition from '${task.status}' to '${status}'`);
-    if (status === 'assigned' && !isClient && !isTasker) throw new ApiError(403, 'Access denied');
-    if (status === 'in_progress' && !isTasker) throw new ApiError(403, 'Only the assigned Tasker can start a task');
-    if (status === 'completed' && !isTasker) throw new ApiError(403, 'Only the assigned Tasker can complete a task');
+  const allowed = ALLOWED[task.status] ?? [];
+  if (!isAdmin && !allowed.includes(status)) {
+    throw new ApiError(400, `Cannot transition from '${task.status}' to '${status}'`);
   }
 
   task.status = status;
-  // Allow tasker assignment when status moves to assigned
-  if (status === 'assigned' && taskerId && !task.taskerId) {
-    task.taskerId = taskerId;
+  // Auto-assign current user as tasker when accepting an open task
+  if (status === 'assigned' && !task.taskerId) {
+    task.taskerId = (taskerId || userId) as unknown as typeof task.taskerId;
   }
   await task.save();
 

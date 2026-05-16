@@ -34,7 +34,7 @@ export const taskerApi = createApi({
       transformResponse: (res: ApiResponse<ITaskerProfile>) => res.data,
       invalidatesTags: ['Tasker'],
     }),
-    uploadAvatar: builder.mutation<{ avatar: string }, FormData>({
+    uploadAvatar: builder.mutation<{ avatar: string }, { base64: string; mimeType: string }>({
       query: (body) => ({ url: '/me/avatar', method: 'POST', body }),
       transformResponse: (res: ApiResponse<{ avatar: string }>) => res.data,
     }),

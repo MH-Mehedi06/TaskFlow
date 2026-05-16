@@ -55,14 +55,16 @@ function StarRow({ rating, size = 'sm' }: { rating: number; size?: 'sm' | 'md' }
 function AvailableTaskCard({ task }: { task: ITask }) {
   const cat = task.categoryId as ICategory;
   const client = task.clientId as IUser;
+  const { user } = useAppSelector((s) => s.auth);
   const [updateStatus, { isLoading }] = useUpdateTaskStatusMutation();
 
   const accept = async () => {
     try {
-      await updateStatus({ id: task._id, status: 'assigned' }).unwrap();
+      await updateStatus({ id: task._id, status: 'assigned', taskerId: user?._id }).unwrap();
       toast.success('Task accepted!');
-    } catch {
-      toast.error('Failed to accept task');
+    } catch (err: unknown) {
+      const msg = (err as { data?: { message?: string } })?.data?.message;
+      toast.error(msg || 'Failed to accept task');
     }
   };
 
