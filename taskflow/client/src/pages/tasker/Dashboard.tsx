@@ -15,29 +15,7 @@ import { useGetMyDisputesQuery } from '../../features/disputes/disputeApi';
 import { useApplyToTaskMutation, useGetMyApplicationsQuery } from '../../features/applications/applicationApi';
 import { useAppSelector } from '../../app/hooks';
 import { ITask, ICategory, IUser, IReview, IDispute, ITaskApplication } from '../../types';
-
-const STATUS_STYLES: Record<string, string> = {
-  posted: 'bg-blue-100 text-blue-700',
-  assigned: 'bg-indigo-100 text-indigo-700',
-  in_progress: 'bg-amber-100 text-amber-700',
-  completed: 'bg-green-100 text-green-700',
-  cancelled: 'bg-red-100 text-red-600',
-};
-
-const APP_STATUS_STYLES: Record<string, string> = {
-  pending: 'bg-blue-100 text-blue-700',
-  accepted: 'bg-green-100 text-green-700',
-  rejected: 'bg-red-100 text-red-600',
-  withdrawn: 'bg-gray-100 text-gray-500',
-};
-
-const DISPUTE_STATUS_STYLES: Record<string, string> = {
-  open: 'bg-blue-100 text-blue-700',
-  under_review: 'bg-amber-100 text-amber-700',
-  resolved_refund: 'bg-green-100 text-green-700',
-  resolved_release: 'bg-purple-100 text-purple-700',
-  closed: 'bg-gray-100 text-gray-600',
-};
+import { TASK_STATUS_STYLES, APP_STATUS_STYLES, DISPUTE_STATUS_STYLES } from '../../constants/statusStyles';
 
 function PaymentStatusBadge({ status }: { status: string }) {
   const map: Record<string, string> = {
@@ -391,8 +369,8 @@ export default function TaskerDashboard() {
   const [activeTab, setActiveTab] = useState<Tab>('available');
 
   const { data: profile } = useGetMyProfileQuery();
-  const { data: myTasksData, isLoading: myLoading } = useGetMyTasksQuery({ limit: 20 }, { skip: activeTab !== 'my-tasks' });
-  const { data: availData, isLoading: availLoading } = useGetAvailableTasksQuery({ limit: 12 }, { skip: activeTab !== 'available' });
+  const { data: myTasksData, isLoading: myLoading, isError: myError } = useGetMyTasksQuery({ limit: 20 }, { skip: activeTab !== 'my-tasks' });
+  const { data: availData, isLoading: availLoading, isError: availError } = useGetAvailableTasksQuery({ limit: 12 }, { skip: activeTab !== 'available' });
   const { data: payHistory = [], isLoading: histLoading } = useGetPaymentHistoryQuery(undefined, { skip: activeTab !== 'earnings' });
   const { data: reviewsData, isLoading: revLoading } = useGetReviewsByUserQuery({ userId: user?._id ?? '' }, { skip: activeTab !== 'reviews' || !user?._id });
   const { data: myAppsData, isLoading: appsLoading } = useGetMyApplicationsQuery({ limit: 20 }, { skip: activeTab !== 'applications' });
@@ -482,6 +460,12 @@ export default function TaskerDashboard() {
             {activeTab === 'available' && (
               availLoading ? (
                 <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-primary-700" /></div>
+              ) : availError ? (
+                <div className="text-center py-16 text-gray-400">
+                  <p className="text-3xl mb-3">⚠️</p>
+                  <p className="font-medium text-gray-600">Failed to load available tasks</p>
+                  <p className="text-sm mt-1">Check your connection and try refreshing.</p>
+                </div>
               ) : availTasks.length === 0 ? (
                 <div className="text-center py-16 text-gray-400">
                   <p className="text-3xl mb-3">📭</p>
@@ -499,6 +483,12 @@ export default function TaskerDashboard() {
             {activeTab === 'my-tasks' && (
               myLoading ? (
                 <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-primary-700" /></div>
+              ) : myError ? (
+                <div className="text-center py-16 text-gray-400">
+                  <p className="text-3xl mb-3">⚠️</p>
+                  <p className="font-medium text-gray-600">Failed to load your tasks</p>
+                  <p className="text-sm mt-1">Check your connection and try refreshing.</p>
+                </div>
               ) : myTasks.length === 0 ? (
                 <div className="text-center py-16 text-gray-400">
                   <p className="text-3xl mb-3">📋</p>
@@ -524,7 +514,7 @@ export default function TaskerDashboard() {
                         </div>
                         <div className="flex items-center gap-2 flex-shrink-0">
                           {task.price && <span className="text-sm font-semibold text-gray-700">${task.price}</span>}
-                          <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${STATUS_STYLES[task.status]}`}>
+                          <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${TASK_STATUS_STYLES[task.status]}`}>
                             {task.status.replace('_', ' ')}
                           </span>
                         </div>

@@ -15,6 +15,8 @@ import {
   notifyApplicationRejected,
   notifyTaskAssigned,
 } from '../services/notification.service';
+import { logger } from '../utils/logger';
+import { populateTask } from '../utils/taskHelpers';
 
 // POST /api/tasks/:id/apply
 export const applyToTask = asyncHandler(async (req: Request, res: Response) => {
@@ -54,7 +56,7 @@ export const applyToTask = asyncHandler(async (req: Request, res: Response) => {
     String(task._id),
     task.title,
     getUserName(req)
-  ).catch(() => null);
+  ).catch((err) => logger.warn('notifyNewApplication failed', err));
 
   res.status(201).json(new ApiResponse(201, application, 'Application submitted successfully'));
 });
@@ -153,8 +155,8 @@ export const acceptApplication = asyncHandler(async (req: Request, res: Response
   );
 
   // Notify the accepted tasker
-  notifyApplicationAccepted(String(application.taskerId), String(task._id), task.title).catch(() => null);
-  notifyTaskAssigned(String(application.taskerId), String(task._id), task.title).catch(() => null);
+  notifyApplicationAccepted(String(application.taskerId), String(task._id), task.title).catch((err) => logger.warn('notifyApplicationAccepted failed', err));
+  notifyTaskAssigned(String(application.taskerId), String(task._id), task.title).catch((err) => logger.warn('notifyTaskAssigned failed', err));
 
   // Notify all rejected applicants
   const rejected = await TaskApplication.find({
@@ -164,13 +166,10 @@ export const acceptApplication = asyncHandler(async (req: Request, res: Response
   }).select('taskerId').lean();
 
   for (const r of rejected) {
-    notifyApplicationRejected(String(r.taskerId), String(task._id), task.title).catch(() => null);
+    notifyApplicationRejected(String(r.taskerId), String(task._id), task.title).catch((err) => logger.warn('notifyApplicationRejected failed', err));
   }
 
-  const populated = await Task.findById(assignedTask._id)
-    .populate('clientId', 'name avatar email phone')
-    .populate('taskerId', 'name avatar email phone')
-    .populate('categoryId', 'name slug icon');
+  const populated = await populateTask(Task.findById(assignedTask._id));
 
   res.json(new ApiResponse(200, { task: populated, application }, 'Application accepted — tasker assigned'));
 });
@@ -191,7 +190,7 @@ export const rejectApplication = asyncHandler(async (req: Request, res: Response
   application.status = 'rejected';
   await application.save();
 
-  notifyApplicationRejected(String(application.taskerId), String(task._id), task.title).catch(() => null);
+  notifyApplicationRejected(String(application.taskerId), String(task._id), task.title).catch((err) => logger.warn('notifyApplicationRejected failed', err));
 
   res.json(new ApiResponse(200, application, 'Application rejected'));
 });

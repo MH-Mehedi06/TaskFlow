@@ -33,6 +33,7 @@ reviewSchema.index({ revieweeId: 1 });
 reviewSchema.index({ rating: -1 });
 reviewSchema.index({ isApproved: 1 });
 reviewSchema.index({ revieweeId: 1, isApproved: 1, createdAt: -1 });
+reviewSchema.index({ isApproved: 1, createdAt: -1 });
 
 reviewSchema.post('save', async function (doc) {
   if (!doc.isApproved) return;

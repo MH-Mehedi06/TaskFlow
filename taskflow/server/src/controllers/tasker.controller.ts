@@ -9,6 +9,7 @@ import { ApiResponse } from '../utils/ApiResponse';
 import { uploadBuffer } from '../services/cloudinary.service';
 import { indexTaskerEmbedding } from './search.controller';
 import { invalidateCache } from '../middleware/cache.middleware';
+import { logger } from '../utils/logger';
 
 export const getTaskers = asyncHandler(async (req: Request, res: Response) => {
   const { category, minRating, maxRate, page = 1, limit = 12 } = req.query;
@@ -89,9 +90,9 @@ export const updateMyProfile = asyncHandler(async (req: Request, res: Response) 
   const skillNames = (profile.skills as unknown as { name: string }[]).map((s) => s.name);
   const embeddingText = [profile.headline, profile.bio, ...skillNames].filter(Boolean).join(' ');
   if (embeddingText.trim()) {
-    indexTaskerEmbedding(String(profile._id), embeddingText).catch(() => null);
+    indexTaskerEmbedding(String(profile._id), embeddingText).catch((err) => logger.warn('indexTaskerEmbedding failed', err));
   }
-  invalidateCache('/api/taskers*').catch(() => null);
+  invalidateCache('/api/taskers*').catch((err) => logger.warn('invalidateCache failed', err));
 
   res.json(new ApiResponse(200, profile, 'Profile updated'));
 });

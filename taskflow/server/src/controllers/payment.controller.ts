@@ -9,6 +9,7 @@ import { ApiResponse } from '../utils/ApiResponse';
 import * as stripeService from '../services/stripe.service';
 import { env } from '../config/env';
 import { notifyPaymentReceived } from '../services/notification.service';
+import { logger } from '../utils/logger';
 
 // POST /api/payments/create-intent
 export const createPaymentIntent = asyncHandler(async (req: Request, res: Response) => {
@@ -55,7 +56,7 @@ export const confirmPayment = asyncHandler(async (req: Request, res: Response) =
   task.paymentStatus = 'held';
   await task.save();
 
-  notifyPaymentReceived(String(task.clientId), String(task._id), task.title, task.price ?? 0).catch(() => null);
+  notifyPaymentReceived(String(task.clientId), String(task._id), task.title, task.price ?? 0).catch((err) => logger.warn('notifyPaymentReceived failed', err));
 
   res.json(new ApiResponse(200, { paymentStatus: 'held' }, 'Payment confirmed'));
 });

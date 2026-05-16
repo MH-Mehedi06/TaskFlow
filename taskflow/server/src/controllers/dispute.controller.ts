@@ -9,6 +9,7 @@ import { uploadBuffer } from '../services/cloudinary.service';
 import * as stripeService from '../services/stripe.service';
 import { notifyDisputeUpdate } from '../services/notification.service';
 import { getUserId, getUserRole } from '../utils/requestHelpers';
+import { logger } from '../utils/logger';
 
 // POST /api/disputes
 export const createDispute = asyncHandler(async (req: Request, res: Response) => {
@@ -44,7 +45,7 @@ export const createDispute = asyncHandler(async (req: Request, res: Response) =>
   });
 
   const otherId = isClient ? String(task.taskerId) : String(task.clientId);
-  notifyDisputeUpdate(otherId, String(dispute._id), `A dispute has been raised for task: ${task.title}`).catch(() => null);
+  notifyDisputeUpdate(otherId, String(dispute._id), `A dispute has been raised for task: ${task.title}`).catch((err) => logger.warn('notifyDisputeUpdate failed', err));
 
   return res.status(201).json(new ApiResponse(201, dispute, 'Dispute submitted'));
 });
@@ -143,8 +144,8 @@ export const updateDisputeStatus = asyncHandler(async (req: Request, res: Respon
   };
   const msg = statusMsg[status] ?? `Dispute status updated to: ${status}`;
 
-  notifyDisputeUpdate(String(dispute.clientId), String(dispute._id), msg).catch(() => null);
-  notifyDisputeUpdate(String(dispute.taskerId), String(dispute._id), msg).catch(() => null);
+  notifyDisputeUpdate(String(dispute.clientId), String(dispute._id), msg).catch((err) => logger.warn('notifyDisputeUpdate failed', err));
+  notifyDisputeUpdate(String(dispute.taskerId), String(dispute._id), msg).catch((err) => logger.warn('notifyDisputeUpdate failed', err));
 
   return res.json(new ApiResponse(200, dispute));
 });
@@ -190,8 +191,8 @@ export const resolveDispute = asyncHandler(async (req: Request, res: Response) =
     ? 'Dispute resolved: payment released to tasker.'
     : `Dispute resolved: refund of $${(refundAmount ?? task.price ?? 0).toFixed(2)} issued.`;
 
-  notifyDisputeUpdate(String(dispute.clientId), String(dispute._id), msg).catch(() => null);
-  notifyDisputeUpdate(String(dispute.taskerId), String(dispute._id), msg).catch(() => null);
+  notifyDisputeUpdate(String(dispute.clientId), String(dispute._id), msg).catch((err) => logger.warn('notifyDisputeUpdate failed', err));
+  notifyDisputeUpdate(String(dispute.taskerId), String(dispute._id), msg).catch((err) => logger.warn('notifyDisputeUpdate failed', err));
 
   return res.json(new ApiResponse(200, updated));
 });

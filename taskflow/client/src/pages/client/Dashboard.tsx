@@ -9,6 +9,7 @@ import { useGetMyTasksQuery, useGetMyTaskStatsQuery } from '../../features/tasks
 import { useGetMyDisputesQuery } from '../../features/disputes/disputeApi';
 import { useAppSelector } from '../../app/hooks';
 import { ITask, IUser, ICategory, IDispute } from '../../types';
+import { TASK_STATUS_STYLES, TASK_STATUS_LABEL, DISPUTE_STATUS_STYLES } from '../../constants/statusStyles';
 
 type StatusTab = 'all' | 'posted' | 'assigned' | 'in_progress' | 'completed' | 'cancelled';
 
@@ -21,27 +22,6 @@ const STATUS_TABS: { key: StatusTab; label: string }[] = [
   { key: 'cancelled', label: 'Cancelled' },
 ];
 
-const STATUS_STYLES: Record<string, string> = {
-  draft: 'bg-gray-100 text-gray-600',
-  posted: 'bg-blue-100 text-blue-700',
-  assigned: 'bg-indigo-100 text-indigo-700',
-  in_progress: 'bg-amber-100 text-amber-700',
-  completed: 'bg-green-100 text-green-700',
-  cancelled: 'bg-red-100 text-red-600',
-};
-
-const STATUS_LABEL: Record<string, string> = {
-  draft: 'Draft', posted: 'Posted', assigned: 'Assigned',
-  in_progress: 'In Progress', completed: 'Completed', cancelled: 'Cancelled',
-};
-
-const DISPUTE_STATUS_STYLES: Record<string, string> = {
-  open: 'bg-blue-100 text-blue-700',
-  under_review: 'bg-amber-100 text-amber-700',
-  resolved_refund: 'bg-green-100 text-green-700',
-  resolved_release: 'bg-purple-100 text-purple-700',
-  closed: 'bg-gray-100 text-gray-600',
-};
 
 function TaskCard({ task }: { task: ITask }) {
   const cat = task.categoryId as ICategory;
@@ -60,8 +40,8 @@ function TaskCard({ task }: { task: ITask }) {
             <p className="text-xs text-gray-400 mt-0.5">{cat?.name}</p>
           </div>
         </div>
-        <span className={`flex-shrink-0 text-xs font-medium px-2.5 py-1 rounded-full ${STATUS_STYLES[task.status] ?? 'bg-gray-100 text-gray-600'}`}>
-          {STATUS_LABEL[task.status] ?? task.status}
+        <span className={`flex-shrink-0 text-xs font-medium px-2.5 py-1 rounded-full ${TASK_STATUS_STYLES[task.status] ?? 'bg-gray-100 text-gray-600'}`}>
+          {TASK_STATUS_LABEL[task.status] ?? task.status}
         </span>
       </div>
 
@@ -106,7 +86,7 @@ export default function ClientDashboard() {
   const taskParams: Record<string, string | number> = { page, limit: 10 };
   if (activeTab !== 'all') taskParams.status = activeTab;
 
-  const { data, isLoading } = useGetMyTasksQuery(taskParams);
+  const { data, isLoading, isError } = useGetMyTasksQuery(taskParams);
   const { data: stats } = useGetMyTaskStatsQuery();
   const { data: disputes = [] } = useGetMyDisputesQuery();
 
@@ -174,11 +154,17 @@ export default function ClientDashboard() {
               <div className="flex justify-center py-16">
                 <Loader2 className="w-8 h-8 animate-spin text-primary-700" />
               </div>
+            ) : isError ? (
+              <div className="flex flex-col items-center justify-center py-16 text-center">
+                <p className="text-3xl mb-3">⚠️</p>
+                <p className="text-gray-700 font-medium">Failed to load tasks</p>
+                <p className="text-sm text-gray-400 mt-1">Check your connection and try refreshing the page.</p>
+              </div>
             ) : tasks.length === 0 ? (
               <div className="text-center py-20">
                 <p className="text-4xl mb-4">📋</p>
                 <p className="text-gray-500 mb-4">
-                  {activeTab === 'all' ? "You haven't booked any tasks yet." : `No ${STATUS_LABEL[activeTab]?.toLowerCase()} tasks.`}
+                  {activeTab === 'all' ? "You haven't booked any tasks yet." : `No ${TASK_STATUS_LABEL[activeTab]?.toLowerCase()} tasks.`}
                 </p>
                 <Link to="/book" className="inline-flex items-center gap-2 bg-primary-700 text-white font-semibold px-5 py-2.5 rounded-xl hover:bg-primary-800 transition-colors">
                   <Plus className="w-4 h-4" /> Book a Tasker

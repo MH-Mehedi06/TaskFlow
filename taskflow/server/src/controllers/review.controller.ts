@@ -7,6 +7,7 @@ import { ApiError } from '../utils/ApiError';
 import { notifyReviewRequest } from '../services/notification.service';
 import { env } from '../config/env';
 import { getUserId } from '../utils/requestHelpers';
+import { logger } from '../utils/logger';
 
 // ── AI moderation (lightweight — real AI lives in Step 12) ─────────────────
 async function moderateReview(comment: string): Promise<{ score: number; reason: string; approved: boolean }> {
@@ -75,7 +76,7 @@ export const createReview = asyncHandler(async (req: Request, res: Response) => 
   });
 
   if (moderation.approved) {
-    notifyReviewRequest(revieweeId, taskId).catch(() => null);
+    notifyReviewRequest(revieweeId, taskId).catch((err) => logger.warn('notifyReviewRequest failed', err));
   }
 
   return res.status(201).json(new ApiResponse(201, review, 'Review submitted'));
@@ -139,11 +140,20 @@ export const approveReview = asyncHandler(async (req: Request, res: Response) =>
 
 // GET /api/reviews/pending  — admin: reviews awaiting moderation
 export const getPendingReviews = asyncHandler(async (req: Request, res: Response) => {
-  const reviews = await Review.find({ isApproved: false })
-    .populate('reviewerId', 'name avatar')
-    .populate('revieweeId', 'name avatar')
-    .populate('taskId', 'title')
-    .sort({ createdAt: -1 })
-    .lean();
-  return res.json(new ApiResponse(200, reviews));
+  const page = Math.max(1, parseInt(req.query.page as string) || 1);
+  const limit = Math.min(50, Math.max(1, parseInt(req.query.limit as string) || 20));
+
+  const [reviews, total] = await Promise.all([
+    Review.find({ isApproved: false })
+      .populate('reviewerId', 'name avatar')
+      .populate('revieweeId', 'name avatar')
+      .populate('taskId', 'title')
+      .sort({ createdAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(limit)
+      .lean(),
+    Review.countDocuments({ isApproved: false }),
+  ]);
+
+  return res.json(new ApiResponse(200, { reviews, total, page, totalPages: Math.ceil(total / limit) }));
 });

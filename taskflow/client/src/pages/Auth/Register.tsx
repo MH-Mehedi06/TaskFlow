@@ -41,7 +41,7 @@ export default function Register() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
 
-  const { register, handleSubmit, formState: { errors }, watch } = useForm<FormData>({
+  const { register, handleSubmit, formState: { errors }, watch, setError } = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: { terms: false },
   });
@@ -59,8 +59,22 @@ export default function Register() {
       toast.success('Account created! Check your email to verify.');
       navigate('/login');
     } catch (err: unknown) {
-      const msg = (err as { data?: { message?: string } })?.data?.message || 'Registration failed';
-      toast.error(msg);
+      const apiErr = err as { data?: { message?: string; errors?: Array<{ path: string; msg: string }> } };
+      const serverErrors = apiErr?.data?.errors;
+      if (serverErrors?.length) {
+        // Map express-validator field errors directly onto the form
+        const knownFields: Array<keyof FormData> = ['name', 'email', 'phone', 'password', 'confirmPassword'];
+        let hadFieldError = false;
+        serverErrors.forEach(({ path, msg }) => {
+          if (knownFields.includes(path as keyof FormData)) {
+            setError(path as keyof FormData, { type: 'server', message: msg });
+            hadFieldError = true;
+          }
+        });
+        if (!hadFieldError) toast.error(apiErr?.data?.message ?? 'Registration failed');
+      } else {
+        toast.error(apiErr?.data?.message ?? 'Registration failed');
+      }
     }
   };
 

@@ -19,14 +19,7 @@ import {
 } from '../../features/applications/applicationApi';
 import { useAppSelector } from '../../app/hooks';
 import { IUser, ICategory, ITaskApplication } from '../../types';
-
-const STATUS_STYLES: Record<string, string> = {
-  posted: 'bg-blue-100 text-blue-700',
-  assigned: 'bg-indigo-100 text-indigo-700',
-  in_progress: 'bg-amber-100 text-amber-700',
-  completed: 'bg-green-100 text-green-700',
-  cancelled: 'bg-red-100 text-red-600',
-};
+import { TASK_STATUS_STYLES } from '../../constants/statusStyles';
 
 const TIMELINE: { status: string; label: string; desc: string }[] = [
   { status: 'posted', label: 'Task Posted', desc: 'Accepting applications from Taskers' },
@@ -51,27 +44,34 @@ function StarRating({ value, onChange }: { value: number; onChange: (v: number) 
 
 // ── Applications panel (client view) ─────────────────────────────────────────
 function ApplicationsPanel({ taskId, estimatedHours }: { taskId: string; estimatedHours?: number }) {
-  const { data: applications = [], isLoading } = useGetApplicationsQuery(taskId);
+  const { data: applications = [], isLoading, isError } = useGetApplicationsQuery(taskId);
   const [acceptApplication, { isLoading: accepting }] = useAcceptApplicationMutation();
   const [rejectApplication, { isLoading: rejecting }] = useRejectApplicationMutation();
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [actingOnId, setActingOnId] = useState<string | null>(null);
 
   const handleAccept = async (applicationId: string) => {
+    setActingOnId(applicationId);
     try {
       await acceptApplication({ taskId, applicationId }).unwrap();
       toast.success('Tasker accepted! Task is now assigned.');
     } catch (err: unknown) {
       const msg = (err as { data?: { message?: string } })?.data?.message;
       toast.error(msg ?? 'Failed to accept application');
+    } finally {
+      setActingOnId(null);
     }
   };
 
   const handleReject = async (applicationId: string) => {
+    setActingOnId(applicationId);
     try {
       await rejectApplication({ taskId, applicationId }).unwrap();
-      toast.success('Application rejected');
+      toast.success('Application declined');
     } catch {
-      toast.error('Failed to reject application');
+      toast.error('Failed to decline application');
+    } finally {
+      setActingOnId(null);
     }
   };
 
@@ -81,6 +81,16 @@ function ApplicationsPanel({ taskId, estimatedHours }: { taskId: string; estimat
         <div className="flex items-center justify-center py-8">
           <Loader2 className="w-6 h-6 animate-spin text-primary-700" />
         </div>
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className="bg-white rounded-2xl border border-gray-200 p-6 text-center py-10">
+        <p className="text-2xl mb-2">⚠️</p>
+        <p className="text-sm text-gray-600 font-medium">Failed to load applications</p>
+        <p className="text-xs text-gray-400 mt-1">Try refreshing the page.</p>
       </div>
     );
   }
@@ -199,7 +209,9 @@ function ApplicationsPanel({ taskId, estimatedHours }: { taskId: string; estimat
                         disabled={accepting || rejecting}
                         className="flex-1 flex items-center justify-center gap-1.5 bg-primary-700 hover:bg-primary-800 disabled:opacity-60 text-white font-semibold py-2 rounded-lg text-xs transition-colors"
                       >
-                        {accepting ? <Loader2 className="w-3 h-3 animate-spin" /> : <CheckCircle className="w-3 h-3" />}
+                        {accepting && actingOnId === app._id
+                          ? <Loader2 className="w-3 h-3 animate-spin" />
+                          : <CheckCircle className="w-3 h-3" />}
                         Accept
                       </button>
                       <button
@@ -207,7 +219,10 @@ function ApplicationsPanel({ taskId, estimatedHours }: { taskId: string; estimat
                         disabled={accepting || rejecting}
                         className="flex-1 flex items-center justify-center gap-1.5 border border-gray-300 text-gray-600 hover:bg-gray-50 disabled:opacity-60 font-medium py-2 rounded-lg text-xs transition-colors"
                       >
-                        <X className="w-3 h-3" /> Decline
+                        {rejecting && actingOnId === app._id
+                          ? <Loader2 className="w-3 h-3 animate-spin" />
+                          : <X className="w-3 h-3" />}
+                        Decline
                       </button>
                     </div>
                   )}
@@ -464,7 +479,7 @@ export default function TaskDetail() {
                     <p className="text-sm text-gray-400">{cat?.name}</p>
                   </div>
                 </div>
-                <span className={`flex-shrink-0 text-xs font-semibold px-3 py-1.5 rounded-full ${STATUS_STYLES[task.status] ?? 'bg-gray-100 text-gray-600'}`}>
+                <span className={`flex-shrink-0 text-xs font-semibold px-3 py-1.5 rounded-full ${TASK_STATUS_STYLES[task.status] ?? 'bg-gray-100 text-gray-600'}`}>
                   {task.status.replace('_', ' ').replace(/\b\w/g, (c) => c.toUpperCase())}
                 </span>
               </div>

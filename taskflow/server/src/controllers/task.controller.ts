@@ -13,12 +13,8 @@ import {
   notifyTaskCompleted,
   notifyPaymentReceived,
 } from '../services/notification.service';
-
-const populateTask = (query: ReturnType<typeof Task.findById | typeof Task.findOne>) =>
-  query
-    .populate('clientId', 'name avatar email phone')
-    .populate('taskerId', 'name avatar email phone')
-    .populate('categoryId', 'name slug icon');
+import { logger } from '../utils/logger';
+import { populateTask } from '../utils/taskHelpers';
 
 // POST /api/tasks
 export const createTask = asyncHandler(async (req: Request, res: Response) => {
@@ -225,10 +221,10 @@ export const updateTaskStatus = asyncHandler(async (req: Request, res: Response)
 
   // Notifications (fire-and-forget)
   if (status === 'assigned' && task.taskerId) {
-    notifyTaskAssigned(String(task.taskerId), String(task._id), task.title).catch(() => null);
+    notifyTaskAssigned(String(task.taskerId), String(task._id), task.title).catch((err) => logger.warn('notifyTaskAssigned failed', err));
   }
   if (status === 'completed') {
-    notifyTaskCompleted(String(task.clientId), String(task._id), task.title).catch(() => null);
+    notifyTaskCompleted(String(task.clientId), String(task._id), task.title).catch((err) => logger.warn('notifyTaskCompleted failed', err));
   }
 
   // Auto-capture: atomically flip paymentStatus from 'held' → 'captured'.
@@ -244,7 +240,7 @@ export const updateTaskStatus = asyncHandler(async (req: Request, res: Response)
       try {
         await stripeService.capturePaymentIntent(task.paymentIntentId);
         if (task.taskerEarnings) {
-          notifyPaymentReceived(String(task.taskerId), String(task._id), task.title, task.taskerEarnings).catch(() => null);
+          notifyPaymentReceived(String(task.taskerId), String(task._id), task.title, task.taskerEarnings).catch((err) => logger.warn('notifyPaymentReceived failed', err));
         }
         if (task.taskerId && task.taskerEarnings) {
           const profile = await TaskerProfile.findOne({ userId: task.taskerId });
