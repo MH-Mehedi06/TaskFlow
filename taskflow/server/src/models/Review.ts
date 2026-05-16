@@ -40,11 +40,15 @@ reviewSchema.post('save', async function (doc) {
   try {
     const { TaskerProfile } = await import('./TaskerProfile');
     const Review = mongoose.model<IReview>('Review');
-    const reviews = await Review.find({ revieweeId: doc.revieweeId, isApproved: true });
-    const avg = reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length;
+    const [result] = await Review.aggregate<{ avg: number; count: number }>([
+      { $match: { revieweeId: doc.revieweeId, isApproved: true } },
+      { $group: { _id: null, avg: { $avg: '$rating' }, count: { $sum: 1 } } },
+    ]);
+    const avg = result?.avg ?? 0;
+    const count = result?.count ?? 0;
     await TaskerProfile.findOneAndUpdate(
       { userId: doc.revieweeId },
-      { avgRating: Math.round(avg * 10) / 10, totalReviews: reviews.length }
+      { avgRating: Math.round(avg * 10) / 10, totalReviews: count }
     );
   } catch { /* ignore */ }
 });

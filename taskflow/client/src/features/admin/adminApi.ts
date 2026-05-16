@@ -51,7 +51,7 @@ export interface AuditLogEntry {
 
 export const adminApi = createApi({
   reducerPath: 'adminApi',
-  keepUnusedDataFor: 30,
+  keepUnusedDataFor: 60,
   baseQuery: makeBaseQuery('/api/admin'),
   tagTypes: ['AdminUser', 'AdminTask', 'AdminReview', 'AdminDispute', 'AdminStats', 'AdminCategory', 'AdminTasker', 'AdminFinancials', 'AdminSettings', 'AdminActivity', 'AdminAuditLog'],
   endpoints: (builder) => ({

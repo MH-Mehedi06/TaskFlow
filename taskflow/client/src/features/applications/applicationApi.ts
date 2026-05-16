@@ -20,7 +20,7 @@ interface ApplicationActionPayload {
 
 export const applicationApi = createApi({
   reducerPath: 'applicationApi',
-  keepUnusedDataFor: 30,
+  keepUnusedDataFor: 300,
   baseQuery: makeBaseQuery('/api/tasks'),
   tagTypes: ['Application', 'Task'],
   endpoints: (builder) => ({

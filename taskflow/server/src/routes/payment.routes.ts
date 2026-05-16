@@ -20,9 +20,9 @@ router.use(requireAuth);
 
 router.post('/create-intent', requireRole('client'), createPaymentIntent);
 router.post('/confirm', requireRole('client'), confirmPayment);
-router.post('/capture/:taskId', capturePayment);
+router.post('/capture/:taskId', requireRole('tasker', 'admin'), capturePayment);
 router.post('/refund/:taskId', requireRole('admin'), refundPayment);
-router.get('/history', getPaymentHistory);
+router.get('/history', requireRole('client', 'tasker'), getPaymentHistory);
 router.post('/connect/create', requireRole('tasker', 'admin'), createConnectAccount);
 router.get('/connect/link', requireRole('tasker', 'admin'), getConnectOnboardingLink);
 

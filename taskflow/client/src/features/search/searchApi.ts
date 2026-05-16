@@ -21,7 +21,7 @@ export interface SearchTaskersParams {
 
 export const searchApi = createApi({
   reducerPath: 'searchApi',
-  keepUnusedDataFor: 30,
+  keepUnusedDataFor: 60,
   baseQuery: makeBaseQuery('/api/search'),
   endpoints: (builder) => ({
     searchTaskers: builder.query<TaskerSearchResult, SearchTaskersParams>({

@@ -39,9 +39,9 @@ export const paymentApi = createApi({
       transformResponse: (res: ApiResponse<ITask>) => res.data,
       invalidatesTags: ['Payment'],
     }),
-    getPaymentHistory: builder.query<ITask[], void>({
-      query: () => '/history',
-      transformResponse: (res: ApiResponse<ITask[]>) => res.data,
+    getPaymentHistory: builder.query<{ tasks: ITask[]; total: number; page: number; totalPages: number }, { page?: number; limit?: number }>({
+      query: (params = {}) => ({ url: '/history', params }),
+      transformResponse: (res: ApiResponse<{ tasks: ITask[]; total: number; page: number; totalPages: number }>) => res.data,
       providesTags: ['Payment'],
     }),
     createConnectAccount: builder.mutation<ConnectAccountResult, void>({

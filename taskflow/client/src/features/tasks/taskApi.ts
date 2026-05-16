@@ -11,7 +11,7 @@ export interface TaskStats {
 
 export const taskApi = createApi({
   reducerPath: 'taskApi',
-  keepUnusedDataFor: 30,
+  keepUnusedDataFor: 300,
   baseQuery: makeBaseQuery('/api/tasks'),
   tagTypes: ['Task'],
   endpoints: (builder) => ({

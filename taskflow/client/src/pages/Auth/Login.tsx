@@ -1,8 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { Link, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import toast from 'react-hot-toast';
 import { Eye, EyeOff } from 'lucide-react';
@@ -16,6 +16,12 @@ const schema = z.object({
 });
 type FormData = z.infer<typeof schema>;
 
+const getRoleDefault = (role?: string) => {
+  if (role === 'admin') return '/admin';
+  if (role === 'tasker') return '/tasker/dashboard';
+  return '/dashboard';
+};
+
 export default function Login() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -23,24 +29,36 @@ export default function Login() {
   const { user } = useAppSelector((s) => s.auth);
   const [login, { isLoading }] = useLoginMutation();
   const [showPassword, setShowPassword] = useState(false);
-  const from = (location.state as { from?: { pathname: string } })?.from?.pathname || '/dashboard';
-
-  useEffect(() => {
-    if (user) navigate(from, { replace: true });
-  }, [user, navigate, from]);
-
   const { register, handleSubmit, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
   });
 
+  const from = (location.state as { from?: { pathname: string } })?.from?.pathname;
+
+  // Already authenticated — redirect without useEffect timing issues
+  if (user) return <Navigate to={from || getRoleDefault(user.role)} replace />;
+
   const onSubmit = async (data: FormData) => {
     try {
       const res = await login(data).unwrap();
-      dispatch(setCredentials({ user: res.data.user, accessToken: res.data.accessToken }));
+      const loggedInUser = res?.data?.user;
+      const accessToken = res?.data?.accessToken;
+      dispatch(setCredentials({ user: loggedInUser, accessToken }));
       toast.success('Welcome back!');
-      navigate(from, { replace: true });
+      navigate(from || getRoleDefault(loggedInUser?.role), { replace: true });
     } catch (err: unknown) {
-      const msg = (err as { data?: { message?: string } })?.data?.message || 'Login failed';
+      const e = err as { data?: { message?: string }; error?: string; status?: number | string };
+      console.error('[Login] error object:', JSON.stringify(e));
+      let msg: string;
+      if (e?.data?.message) {
+        msg = e.data.message;
+      } else if (e?.status === 'FETCH_ERROR' || e?.status === 'TIMEOUT_ERROR') {
+        msg = 'Cannot reach server. Make sure both servers are running.';
+      } else if (e?.error) {
+        msg = e.error;
+      } else {
+        msg = 'Login failed. Please check your credentials.';
+      }
       toast.error(msg);
     }
   };

@@ -29,13 +29,14 @@ router.use(requireAuth);
 
 router.post(
   '/',
-  requireRole('client', 'tasker'),
+  requireRole('client'),
   [
     body('categoryId').isMongoId().withMessage('Valid category required'),
     body('title').trim().notEmpty().withMessage('Title required'),
     body('description').trim().notEmpty().withMessage('Description required'),
     body('address').trim().notEmpty().withMessage('Address required'),
     body('scheduledAt').isISO8601().withMessage('Valid date required'),
+    body('estimatedHours').optional().isFloat({ min: 0.5, max: 168 }).withMessage('Estimated hours must be between 0.5 and 168'),
   ],
   createTask
 );

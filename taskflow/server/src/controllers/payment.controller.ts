@@ -56,7 +56,9 @@ export const confirmPayment = asyncHandler(async (req: Request, res: Response) =
   task.paymentStatus = 'held';
   await task.save();
 
-  notifyPaymentReceived(String(task.clientId), String(task._id), task.title, task.price ?? 0).catch((err) => logger.warn('notifyPaymentReceived failed', err));
+  if (task.taskerId) {
+    notifyPaymentReceived(String(task.taskerId), String(task._id), task.title, task.price ?? 0).catch((err) => logger.warn('notifyPaymentReceived failed', err));
+  }
 
   res.json(new ApiResponse(200, { paymentStatus: 'held' }, 'Payment confirmed'));
 });
@@ -160,20 +162,26 @@ export const getConnectOnboardingLink = asyncHandler(async (req: Request, res: R
 export const getPaymentHistory = asyncHandler(async (req: Request, res: Response) => {
   const userId = getUserId(req);
   const role = getUserRole(req);
+  const page = Math.max(1, parseInt(req.query.page as string) || 1);
+  const limit = Math.min(50, Math.max(1, parseInt(req.query.limit as string) || 20));
 
   const filter =
     role === 'tasker'
       ? { taskerId: userId, paymentStatus: { $ne: 'pending' } }
       : { clientId: userId, paymentStatus: { $ne: 'pending' } };
 
-  const tasks = await Task.find(filter)
-    .populate('categoryId', 'name icon')
-    .populate('clientId', 'name avatar')
-    .populate('taskerId', 'name avatar')
-    .sort({ updatedAt: -1 })
-    .limit(50);
+  const [tasks, total] = await Promise.all([
+    Task.find(filter)
+      .populate('categoryId', 'name icon')
+      .populate('clientId', 'name avatar')
+      .populate('taskerId', 'name avatar')
+      .sort({ updatedAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(limit),
+    Task.countDocuments(filter),
+  ]);
 
-  res.json(new ApiResponse(200, tasks, 'Payment history fetched'));
+  res.json(new ApiResponse(200, { tasks, total, page, totalPages: Math.ceil(total / limit) }, 'Payment history fetched'));
 });
 
 // POST /api/payments/webhook  — raw body, Stripe signature verification

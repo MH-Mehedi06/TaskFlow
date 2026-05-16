@@ -7,6 +7,7 @@ import { Review } from '../models/Review';
 import { Dispute } from '../models/Dispute';
 import { Notification } from '../models/Notification';
 import { PlatformSettings } from '../models/PlatformSettings';
+import TaskApplication from '../models/TaskApplication';
 import { AuditLog, AuditAction, IAuditLog } from '../models/AuditLog';
 import { asyncHandler } from '../utils/asyncHandler';
 import { ApiResponse } from '../utils/ApiResponse';
@@ -105,7 +106,7 @@ export const getUsers = asyncHandler(async (req: Request, res: Response) => {
 
   const [users, total] = await Promise.all([
     User.find(filter)
-      .select('-password -refreshTokenHash')
+      .select('-passwordHash -refreshTokenHash -oauthProviders -__v')
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(Number(limit))
@@ -117,7 +118,7 @@ export const getUsers = asyncHandler(async (req: Request, res: Response) => {
 });
 
 export const getUserById = asyncHandler(async (req: Request, res: Response) => {
-  const user = await User.findById(req.params.id).select('-password -refreshTokenHash').lean();
+  const user = await User.findById(req.params.id).select('-passwordHash -refreshTokenHash -oauthProviders -__v').lean();
   if (!user) throw new ApiError(404, 'User not found');
 
   const [profile, taskCount] = await Promise.all([
@@ -134,7 +135,7 @@ export const updateUserRole = asyncHandler(async (req: Request, res: Response) =
   if (!['client', 'tasker', 'admin'].includes(role)) throw new ApiError(400, 'Invalid role');
   if (req.params.id === adminId) throw new ApiError(400, 'Cannot change your own role');
 
-  const user = await User.findByIdAndUpdate(req.params.id, { role }, { new: true }).select('-password -refreshTokenHash');
+  const user = await User.findByIdAndUpdate(req.params.id, { role }, { new: true }).select('-passwordHash -refreshTokenHash -oauthProviders -__v');
   if (!user) throw new ApiError(404, 'User not found');
   void recordAuditLog(req, 'update_role', 'user', String(user._id), user.name, `Role set to ${role}`);
   return res.json(new ApiResponse(200, user, 'Role updated'));
@@ -145,7 +146,7 @@ export const banUser = asyncHandler(async (req: Request, res: Response) => {
   const { banned } = req.body;
   if (req.params.id === adminId) throw new ApiError(400, 'Cannot ban yourself');
 
-  const user = await User.findByIdAndUpdate(req.params.id, { isBanned: !!banned }, { new: true }).select('-password -refreshTokenHash');
+  const user = await User.findByIdAndUpdate(req.params.id, { isBanned: !!banned }, { new: true }).select('-passwordHash -refreshTokenHash -oauthProviders -__v');
   if (!user) throw new ApiError(404, 'User not found');
   void recordAuditLog(req, banned ? 'ban_user' : 'unban_user', 'user', String(user._id), user.name);
   return res.json(new ApiResponse(200, user, banned ? 'User banned' : 'User unbanned'));
@@ -287,10 +288,16 @@ export const deleteUser = asyncHandler(async (req: Request, res: Response) => {
     if (adminCount <= 1) throw new ApiError(400, 'Cannot delete the last admin account');
   }
 
+  const id = req.params.id;
   const userName = user.name;
   await Promise.all([
-    User.findByIdAndDelete(req.params.id),
-    TaskerProfile.deleteOne({ userId: req.params.id }),
+    User.findByIdAndDelete(id),
+    TaskerProfile.deleteOne({ userId: id }),
+    Task.deleteMany({ $or: [{ clientId: id }, { taskerId: id }] }),
+    Review.deleteMany({ $or: [{ reviewerId: id }, { revieweeId: id }] }),
+    Dispute.deleteMany({ $or: [{ clientId: id }, { taskerId: id }, { raisedBy: id }] }),
+    TaskApplication.deleteMany({ taskerId: id }),
+    Notification.deleteMany({ userId: id }),
   ]);
 
   void recordAuditLog(req, 'delete_user', 'user', req.params.id, userName, `Role was ${user.role}`);

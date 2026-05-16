@@ -367,11 +367,12 @@ type Tab = 'available' | 'my-tasks' | 'applications' | 'reviews' | 'earnings';
 export default function TaskerDashboard() {
   const { user } = useAppSelector((s) => s.auth);
   const [activeTab, setActiveTab] = useState<Tab>('available');
+  const [histPage, setHistPage] = useState(1);
 
   const { data: profile } = useGetMyProfileQuery();
   const { data: myTasksData, isLoading: myLoading, isError: myError } = useGetMyTasksQuery({ limit: 20 }, { skip: activeTab !== 'my-tasks' });
   const { data: availData, isLoading: availLoading, isError: availError } = useGetAvailableTasksQuery({ limit: 12 }, { skip: activeTab !== 'available' });
-  const { data: payHistory = [], isLoading: histLoading } = useGetPaymentHistoryQuery(undefined, { skip: activeTab !== 'earnings' });
+  const { data: payHistoryData, isLoading: histLoading } = useGetPaymentHistoryQuery({ page: histPage, limit: 20 }, { skip: activeTab !== 'earnings' });
   const { data: reviewsData, isLoading: revLoading } = useGetReviewsByUserQuery({ userId: user?._id ?? '' }, { skip: activeTab !== 'reviews' || !user?._id });
   const { data: myAppsData, isLoading: appsLoading } = useGetMyApplicationsQuery({ limit: 20 }, { skip: activeTab !== 'applications' });
   const reviews = reviewsData?.reviews ?? [];
@@ -382,6 +383,8 @@ export default function TaskerDashboard() {
   const availTasks = (availData as unknown as { data: ITask[] })?.data ?? [];
   const myApplications = myAppsData?.data ?? [];
   const openDisputes = (disputes as IDispute[]).filter((d) => ['open', 'under_review'].includes(d.status));
+  const payHistory = payHistoryData?.tasks ?? [];
+  const histTotalPages = payHistoryData?.totalPages ?? 1;
 
   const pendingApps = myApplications.filter((a) => a.status === 'pending').length;
 
@@ -570,28 +573,37 @@ export default function TaskerDashboard() {
                   <p>No earnings yet. Complete tasks to start earning!</p>
                 </div>
               ) : (
-                <div className="space-y-3">
-                  {payHistory.map((task) => {
-                    const cat = task.categoryId as ICategory;
-                    return (
-                      <div key={task._id} className="bg-white rounded-xl border border-gray-200 p-4 flex items-center justify-between gap-3">
-                        <div className="flex items-center gap-3 min-w-0">
-                          <span className="text-xl">{cat?.icon}</span>
-                          <div className="min-w-0">
-                            <p className="font-semibold text-sm text-gray-800 truncate">{task.title}</p>
-                            <p className="text-xs text-gray-400">{new Date(task.createdAt).toLocaleDateString()}</p>
+                <>
+                  <div className="space-y-3">
+                    {payHistory.map((task) => {
+                      const cat = task.categoryId as ICategory;
+                      return (
+                        <div key={task._id} className="bg-white rounded-xl border border-gray-200 p-4 flex items-center justify-between gap-3">
+                          <div className="flex items-center gap-3 min-w-0">
+                            <span className="text-xl">{cat?.icon}</span>
+                            <div className="min-w-0">
+                              <p className="font-semibold text-sm text-gray-800 truncate">{task.title}</p>
+                              <p className="text-xs text-gray-400">{new Date(task.createdAt).toLocaleDateString()}</p>
+                            </div>
+                          </div>
+                          <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                            <span className="font-bold text-green-600">
+                              {task.taskerEarnings != null ? `+$${task.taskerEarnings.toFixed(2)}` : '—'}
+                            </span>
+                            <PaymentStatusBadge status={task.paymentStatus} />
                           </div>
                         </div>
-                        <div className="flex flex-col items-end gap-1 flex-shrink-0">
-                          <span className="font-bold text-green-600">
-                            {task.taskerEarnings != null ? `+$${task.taskerEarnings.toFixed(2)}` : '—'}
-                          </span>
-                          <PaymentStatusBadge status={task.paymentStatus} />
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
+                      );
+                    })}
+                  </div>
+                  {histTotalPages > 1 && (
+                    <div className="flex justify-center items-center gap-3 mt-6">
+                      <button onClick={() => setHistPage((p) => Math.max(1, p - 1))} disabled={histPage === 1} className="px-4 py-2 border border-gray-300 rounded-lg text-sm disabled:opacity-40">Prev</button>
+                      <span className="text-sm text-gray-500">Page {histPage} of {histTotalPages}</span>
+                      <button onClick={() => setHistPage((p) => Math.min(histTotalPages, p + 1))} disabled={histPage === histTotalPages} className="px-4 py-2 border border-gray-300 rounded-lg text-sm disabled:opacity-40">Next</button>
+                    </div>
+                  )}
+                </>
               )
             )}
           </div>

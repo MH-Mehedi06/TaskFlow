@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { validationResult } from 'express-validator';
 import mongoose from 'mongoose';
 import { Task } from '../models/Task';
+import { User } from '../models/User';
 import { TaskerProfile } from '../models/TaskerProfile';
 import TaskApplication from '../models/TaskApplication';
 import { asyncHandler } from '../utils/asyncHandler';
@@ -126,6 +127,13 @@ export const acceptApplication = asyncHandler(async (req: Request, res: Response
     if (!existing) throw new ApiError(404, 'Application not found');
     if (String(existing.taskId) !== String(task._id)) throw new ApiError(400, 'Application does not belong to this task');
     throw new ApiError(400, 'This application is no longer pending');
+  }
+
+  // Ensure the tasker account is still active before assigning
+  const taskerUser = await User.findById(application.taskerId).select('isBanned isVerified').lean();
+  if (!taskerUser || taskerUser.isBanned) {
+    await TaskApplication.findByIdAndUpdate(application._id, { status: 'pending' });
+    throw new ApiError(400, 'This tasker account is no longer active — please choose another applicant');
   }
 
   // Calculate pricing from proposed rate × estimated hours
