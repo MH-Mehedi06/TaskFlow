@@ -1,6 +1,9 @@
 import { Helmet } from 'react-helmet-async';
 import { Users, ShoppingBag, DollarSign, AlertTriangle, BarChart2, TrendingUp, Clock, ChevronRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import {
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+} from 'recharts';
 import { useGetStatsQuery, useGetRecentActivityQuery } from '../../features/admin/adminApi';
 import { StatCardSkeleton, SkeletonLine, SkeletonAvatar } from '../../components/admin/Skeleton';
 import { IUser, ITask, IDispute } from '../../types';
@@ -111,25 +114,49 @@ export default function Overview() {
           </div>
         )}
 
-        {/* Monthly revenue chart */}
-        {(stats?.revenue?.monthly?.length ?? 0) > 0 && stats && (
+        {/* Monthly revenue chart — always shown, real data from DB */}
+        {stats && (
           <div className="bg-white rounded-2xl border border-gray-200 p-6">
             <div className="flex items-center justify-between mb-5">
-              <h3 className="font-bold text-gray-900 flex items-center gap-2"><TrendingUp className="w-4 h-4" /> Monthly revenue (last 6 months)</h3>
-              <Link to="/admin/financials" className="text-xs text-primary-600 hover:underline flex items-center gap-1">Full report <ChevronRight className="w-3.5 h-3.5" /></Link>
+              <div>
+                <h3 className="font-bold text-gray-900 flex items-center gap-2">
+                  <TrendingUp className="w-4 h-4 text-emerald-500" /> Monthly Revenue
+                </h3>
+                <p className="text-xs text-gray-400 mt-0.5">Platform fees from captured payments · last 6 months</p>
+              </div>
+              <Link to="/admin/revenue" className="text-xs text-primary-600 hover:underline flex items-center gap-1">
+                Full report <ChevronRight className="w-3.5 h-3.5" />
+              </Link>
             </div>
-            <div className="flex items-end gap-2 h-36">
-              {stats.revenue.monthly.map((m) => {
-                const maxRev = Math.max(...stats.revenue.monthly.map((x) => x.revenue), 1);
-                return (
-                  <div key={`${m._id.year}-${m._id.month}`} className="flex-1 flex flex-col items-center gap-1">
-                    <span className="text-xs text-gray-500">${m.revenue.toFixed(0)}</span>
-                    <div className="w-full bg-primary-600 rounded-t" style={{ height: `${Math.max((m.revenue / maxRev) * 100, 4)}%` }} />
-                    <span className="text-xs text-gray-400">{MONTHS[m._id.month - 1]}</span>
-                  </div>
-                );
-              })}
-            </div>
+
+            {stats.revenue.monthly.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-36 text-gray-400 gap-2">
+                <DollarSign className="w-8 h-8 opacity-20" />
+                <p className="text-sm">No revenue recorded yet.</p>
+                <p className="text-xs">Revenue appears here once payments are captured.</p>
+              </div>
+            ) : (
+              <ResponsiveContainer width="100%" height={160}>
+                <BarChart
+                  data={stats.revenue.monthly.map((m) => ({
+                    label: `${MONTHS[m._id.month - 1]} '${String(m._id.year).slice(2)}`,
+                    revenue: m.revenue,
+                    tasks: m.tasks,
+                  }))}
+                  margin={{ top: 4, right: 4, left: -10, bottom: 0 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" vertical={false} />
+                  <XAxis dataKey="label" tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} tickFormatter={(v) => `$${v >= 1000 ? `${(v/1000).toFixed(1)}k` : v}`} />
+                  <Tooltip
+                    formatter={(value: number) => [`$${value.toFixed(2)}`, 'Revenue']}
+                    contentStyle={{ borderRadius: 8, border: '1px solid #e5e7eb', fontSize: 12 }}
+                    cursor={{ fill: '#f0f9ff' }}
+                  />
+                  <Bar dataKey="revenue" fill="#2563eb" radius={[4, 4, 0, 0]} maxBarSize={48} />
+                </BarChart>
+              </ResponsiveContainer>
+            )}
           </div>
         )}
 

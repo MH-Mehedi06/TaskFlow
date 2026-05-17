@@ -41,6 +41,7 @@ export const createOrGetConversation = asyncHandler(async (req: Request, res: Re
     .lean();
 
   if (!conv) {
+    // Create fresh — include tasker if already assigned
     const participants = taskerId
       ? [task.clientId, task.taskerId]
       : [task.clientId];
@@ -49,6 +50,20 @@ export const createOrGetConversation = asyncHandler(async (req: Request, res: Re
     conv = await Conversation.findById(created._id)
       .populate('participants', 'name avatar')
       .lean();
+  } else {
+    // Conversation already exists — add tasker to participants if they were
+    // assigned after the conversation was first created (common flow).
+    const existingIds = conv.participants.map((p) =>
+      String(typeof p === 'object' && '_id' in p ? (p as { _id: unknown })._id : p)
+    );
+    if (taskerId && !existingIds.includes(taskerId)) {
+      await Conversation.findByIdAndUpdate(conv._id, {
+        $addToSet: { participants: task.taskerId },
+      });
+      conv = await Conversation.findById(conv._id)
+        .populate('participants', 'name avatar')
+        .lean();
+    }
   }
 
   return res.status(201).json(new ApiResponse(201, conv));
