@@ -648,27 +648,52 @@ export default function TaskDetail() {
               <TaskerApplyPanel taskId={id} />
             )}
 
-            {/* Tasker card — shown when assigned */}
+            {/* Participant card — shown when assigned */}
             {tasker && !isPosted ? (
               <div className="bg-white rounded-2xl border border-gray-200 p-5">
-                <h3 className="font-bold text-gray-900 mb-3">Your Tasker</h3>
-                <div className="flex items-center gap-3 mb-4">
-                  <img
-                    src={tasker.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(tasker.name)}&background=1D4ED8&color=fff`}
-                    alt={tasker.name}
-                    className="w-12 h-12 rounded-full object-cover"
-                  />
-                  <div>
-                    <p className="font-semibold text-gray-900">{tasker.name}</p>
-                    <p className="text-xs text-gray-400">{tasker.email}</p>
-                  </div>
-                </div>
-                <Link
-                  to={`/chat?userId=${tasker._id}`}
-                  className="w-full flex items-center justify-center gap-2 border border-gray-300 hover:bg-gray-50 text-gray-700 font-medium py-2.5 rounded-lg text-sm transition-colors"
-                >
-                  <MessageSquare className="w-4 h-4" /> Message Tasker
-                </Link>
+                {isTasker ? (
+                  <>
+                    <h3 className="font-bold text-gray-900 mb-3">Your Client</h3>
+                    <div className="flex items-center gap-3 mb-4">
+                      <img
+                        src={client.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(client.name)}&background=1D4ED8&color=fff`}
+                        alt={client.name}
+                        className="w-12 h-12 rounded-full object-cover"
+                      />
+                      <div>
+                        <p className="font-semibold text-gray-900">{client.name}</p>
+                        <p className="text-xs text-gray-400">{client.email}</p>
+                      </div>
+                    </div>
+                    <Link
+                      to={`/chat?taskId=${id}`}
+                      className="w-full flex items-center justify-center gap-2 border border-gray-300 hover:bg-gray-50 text-gray-700 font-medium py-2.5 rounded-lg text-sm transition-colors"
+                    >
+                      <MessageSquare className="w-4 h-4" /> Message Client
+                    </Link>
+                  </>
+                ) : (
+                  <>
+                    <h3 className="font-bold text-gray-900 mb-3">Your Tasker</h3>
+                    <div className="flex items-center gap-3 mb-4">
+                      <img
+                        src={tasker.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(tasker.name)}&background=1D4ED8&color=fff`}
+                        alt={tasker.name}
+                        className="w-12 h-12 rounded-full object-cover"
+                      />
+                      <div>
+                        <p className="font-semibold text-gray-900">{tasker.name}</p>
+                        <p className="text-xs text-gray-400">{tasker.email}</p>
+                      </div>
+                    </div>
+                    <Link
+                      to={`/chat?taskId=${id}`}
+                      className="w-full flex items-center justify-center gap-2 border border-gray-300 hover:bg-gray-50 text-gray-700 font-medium py-2.5 rounded-lg text-sm transition-colors"
+                    >
+                      <MessageSquare className="w-4 h-4" /> Message Tasker
+                    </Link>
+                  </>
+                )}
               </div>
             ) : !tasker && !isPosted ? (
               <div className="bg-white rounded-2xl border border-gray-200 p-5 text-center">

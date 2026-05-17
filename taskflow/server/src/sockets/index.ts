@@ -8,6 +8,7 @@ import { Message } from '../models/Message';
 import { Conversation } from '../models/Conversation';
 import { logger } from '../utils/logger';
 import { setIo } from './io';
+import { notifyNewMessage } from '../services/notification.service';
 
 const ONLINE_KEY = 'online_users';
 
@@ -108,6 +109,20 @@ export const initSockets = (server: HttpServer): void => {
         await Conversation.findByIdAndUpdate(conversationId, { $set: unreadUpdate });
 
         io.to(`conv:${conversationId}`).emit('message:new', populated);
+
+        // Notify other participants who are not actively viewing this conversation
+        const roomSockets = io.sockets.adapter.rooms.get(`conv:${conversationId}`) ?? new Set<string>();
+        const usersInRoom = new Set<string>();
+        for (const sid of roomSockets) {
+          const s = io.sockets.sockets.get(sid);
+          if (s) usersInRoom.add(s.data.userId as string);
+        }
+        const senderName = (populated.senderId as unknown as { name: string })?.name ?? 'Someone';
+        for (const pid of ids) {
+          if (pid !== userId && !usersInRoom.has(pid)) {
+            notifyNewMessage(pid, senderName, conversationId).catch(() => undefined);
+          }
+        }
       }
     );
 

@@ -5,9 +5,10 @@ let socket: Socket | null = null;
 
 export const getSocket = (): Socket => {
   if (!socket) {
-    const token = store.getState().auth.accessToken;
     socket = io('/', {
-      auth: { token },
+      auth: (cb: (data: { token: string | null }) => void) => {
+        cb({ token: store.getState().auth.accessToken });
+      },
       autoConnect: true,
       reconnection: true,
       reconnectionDelay: 1000,

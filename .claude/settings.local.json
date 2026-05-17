@@ -79,7 +79,8 @@
       "Bash(curl -s -v -X POST http://localhost:5173/api/auth/login -H 'Content-Type: application/json' -d '{\"email\":\"admin@gmail.com\",\"password\":\"Admin@123\"}')",
       "Bash(curl -s -X POST http://localhost:5173/api/auth/login -H \"Content-Type: application/json\" -d '{\"email\":\"notanemail\",\"password\":\"test\"}')",
       "Bash(Get-ChildItem -Path \"c:\\\\Users\\\\User\\\\Documents\\\\GitHub\\\\MachineLearningWithPython\\\\Sessions\\\\TaskFlow\\\\taskflow\\\\server\\\\src\" -File)",
-      "Bash(Select-Object Name)"
+      "Bash(Select-Object Name)",
+      "Bash(Get-ChildItem -Path \"c:\\\\Users\\\\User\\\\Documents\\\\GitHub\\\\MachineLearningWithPython\\\\Sessions\\\\TaskFlow\\\\taskflow\" -Directory)"
     ],
     "additionalDirectories": [
       "/media/abdullahmiraz/Miraz/NeighbourWork",

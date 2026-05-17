@@ -70,14 +70,15 @@ export const login = asyncHandler(async (req: Request, res: Response) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) throw new ApiError(422, 'Validation failed', errors.array());
 
-  const { email, password } = req.body;
+  const { password } = req.body;
+  const email = (req.body.email as string).toLowerCase().trim();
   const user = await User.findOne({ email });
-  if (!user) throw new ApiError(401, 'Invalid credentials');
+  if (!user) throw new ApiError(401, env.NODE_ENV === 'development' ? `No account found for: ${email}` : 'Invalid credentials');
   if (!user.isActive) throw new ApiError(403, 'Account is suspended');
   if (!user.isVerified) throw new ApiError(403, 'Please verify your email first');
 
   const valid = await user.comparePassword(password);
-  if (!valid) throw new ApiError(401, 'Invalid credentials');
+  if (!valid) throw new ApiError(401, env.NODE_ENV === 'development' ? 'Incorrect password' : 'Invalid credentials');
 
   const { accessToken, refreshToken } = generateTokens(String(user._id));
   const hash = crypto.createHash('sha256').update(refreshToken).digest('hex');
@@ -111,12 +112,15 @@ export const refreshToken = asyncHandler(async (req: Request, res: Response) => 
   const incoming = crypto.createHash('sha256').update(token).digest('hex');
   if (incoming !== stored) throw new ApiError(401, 'Refresh token mismatch');
 
+  const user = await User.findById(payload.sub).select('-passwordHash');
+  if (!user || !user.isActive) throw new ApiError(401, 'Account inactive');
+
   const { accessToken, refreshToken: newRefresh } = generateTokens(payload.sub as string);
   const newHash = crypto.createHash('sha256').update(newRefresh).digest('hex');
   await redis.setex(`refresh:${payload.sub}`, 7 * 24 * 60 * 60, newHash);
 
   setRefreshCookie(res, newRefresh);
-  res.json(new ApiResponse(200, { accessToken }, 'Token refreshed'));
+  res.json(new ApiResponse(200, { accessToken, user: user.toPublicJSON() }, 'Token refreshed'));
 });
 
 export const verifyEmail = asyncHandler(async (req: Request, res: Response) => {

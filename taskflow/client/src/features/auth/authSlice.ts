@@ -8,9 +8,34 @@ interface AuthState {
   error: string | null;
 }
 
+const STORAGE_KEY = 'tf_auth';
+
+function loadStored(): { user: IUser | null; accessToken: string | null } {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return { user: null, accessToken: null };
+    const parsed = JSON.parse(raw);
+    return { user: parsed.user ?? null, accessToken: parsed.accessToken ?? null };
+  } catch {
+    return { user: null, accessToken: null };
+  }
+}
+
+function persist(user: IUser | null, accessToken: string | null) {
+  try {
+    if (user) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ user, accessToken }));
+    } else {
+      localStorage.removeItem(STORAGE_KEY);
+    }
+  } catch { /* storage not available */ }
+}
+
+const stored = loadStored();
+
 const initialState: AuthState = {
-  user: null,
-  accessToken: null,
+  user: stored.user,
+  accessToken: stored.accessToken,
   isLoading: false,
   error: null,
 };
@@ -23,13 +48,16 @@ const authSlice = createSlice({
       state.user = action.payload.user;
       state.accessToken = action.payload.accessToken;
       state.error = null;
+      persist(action.payload.user, action.payload.accessToken);
     },
     setTokens: (state, action: PayloadAction<{ accessToken: string }>) => {
       state.accessToken = action.payload.accessToken;
+      persist(state.user, action.payload.accessToken);
     },
     logout: (state) => {
       state.user = null;
       state.accessToken = null;
+      persist(null, null);
     },
     setLoading: (state, action: PayloadAction<boolean>) => {
       state.isLoading = action.payload;
@@ -41,6 +69,7 @@ const authSlice = createSlice({
     updateUser: (state, action: PayloadAction<Partial<IUser>>) => {
       if (state.user) {
         state.user = { ...state.user, ...action.payload };
+        persist(state.user, state.accessToken);
       }
     },
   },

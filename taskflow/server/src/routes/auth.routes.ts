@@ -29,7 +29,7 @@ router.post(
   '/register',
   [
     body('name').trim().isLength({ min: 2 }).withMessage('Name must be at least 2 characters'),
-    body('email').isEmail().normalizeEmail().withMessage('Valid email required'),
+    body('email').isEmail().trim().toLowerCase().withMessage('Valid email required'),
     body('password').isLength({ min: 8 }).withMessage('Password must be at least 8 characters'),
     body('role').optional({ checkFalsy: true }).isIn(['client', 'tasker']),
     body('phone').optional({ checkFalsy: true }).isMobilePhone('any'),
@@ -41,7 +41,7 @@ router.post(
   '/login',
   authLimiter,
   [
-    body('email').isEmail().normalizeEmail(),
+    body('email').isEmail().trim().toLowerCase(),
     body('password').notEmpty(),
   ],
   login

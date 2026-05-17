@@ -15,12 +15,13 @@ async function createAdmin() {
   const users = db.collection('users');
 
   const existing = await users.findOne({ email: 'admin@gmail.com' });
+  const passwordHash = await bcrypt.hash('Admin@123', 12);
   if (existing) {
     await users.updateOne(
       { email: 'admin@gmail.com' },
-      { $set: { role: 'admin', isVerified: true, isActive: true } }
+      { $set: { role: 'admin', isVerified: true, isActive: true, passwordHash } }
     );
-    console.log('Admin user already existed — updated role to admin.');
+    console.log('Admin user already existed — updated role and reset password.');
   } else {
     const passwordHash = await bcrypt.hash('Admin@123', 12);
     await users.insertOne({
