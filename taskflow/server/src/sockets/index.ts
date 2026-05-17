@@ -77,51 +77,63 @@ export const initSockets = (server: HttpServer): void => {
 
     socket.on(
       'message:send',
-      async (data: { conversationId: string; content: string; messageType?: 'text' | 'image' | 'system' }) => {
-        const { conversationId, content, messageType = 'text' } = data;
-        if (!content?.trim() && messageType === 'text') return;
-
-        const conv = await Conversation.findById(conversationId).lean();
-        if (!conv) return;
-        const ids = conv.participants.map(String);
-        if (!ids.includes(userId)) return;
-
-        const msg = await Message.create({
-          conversationId,
-          senderId: userId,
-          content,
-          messageType,
-          readBy: [userId],
-        });
-
-        const populated = await msg.populate('senderId', 'name avatar');
-
-        // Increment unread for other participants
-        const unreadUpdate: Record<string, unknown> = {
-          lastMessage: { content, senderId: userId, createdAt: new Date() },
-        };
-        for (const pid of ids) {
-          if (pid !== userId) {
-            const currentUnread = (conv.unreadCount as unknown as Record<string, number>)[pid] ?? 0;
-          unreadUpdate[`unreadCount.${pid}`] = currentUnread + 1;
+      async (
+        data: { conversationId: string; content: string; messageType?: 'text' | 'image' | 'system' },
+        ack?: (res: { ok: boolean; error?: string }) => void
+      ) => {
+        try {
+          const { conversationId, content, messageType = 'text' } = data;
+          if (!content?.trim() && messageType === 'text') {
+            ack?.({ ok: false, error: 'Message cannot be empty' });
+            return;
           }
-        }
-        await Conversation.findByIdAndUpdate(conversationId, { $set: unreadUpdate });
 
-        io.to(`conv:${conversationId}`).emit('message:new', populated);
+          const conv = await Conversation.findById(conversationId).lean();
+          if (!conv) { ack?.({ ok: false, error: 'Conversation not found' }); return; }
+          const ids = conv.participants.map(String);
+          if (!ids.includes(userId)) { ack?.({ ok: false, error: 'Not a participant' }); return; }
 
-        // Notify other participants who are not actively viewing this conversation
-        const roomSockets = io.sockets.adapter.rooms.get(`conv:${conversationId}`) ?? new Set<string>();
-        const usersInRoom = new Set<string>();
-        for (const sid of roomSockets) {
-          const s = io.sockets.sockets.get(sid);
-          if (s) usersInRoom.add(s.data.userId as string);
-        }
-        const senderName = (populated.senderId as unknown as { name: string })?.name ?? 'Someone';
-        for (const pid of ids) {
-          if (pid !== userId && !usersInRoom.has(pid)) {
-            notifyNewMessage(pid, senderName, conversationId).catch(() => undefined);
+          const msg = await Message.create({
+            conversationId,
+            senderId: userId,
+            content,
+            messageType,
+            readBy: [userId],
+          });
+
+          const populated = await msg.populate('senderId', 'name avatar');
+
+          // Increment unread for other participants
+          const unreadUpdate: Record<string, unknown> = {
+            lastMessage: { content, senderId: userId, createdAt: new Date() },
+          };
+          for (const pid of ids) {
+            if (pid !== userId) {
+              const currentUnread = (conv.unreadCount as unknown as Record<string, number>)[pid] ?? 0;
+              unreadUpdate[`unreadCount.${pid}`] = currentUnread + 1;
+            }
           }
+          await Conversation.findByIdAndUpdate(conversationId, { $set: unreadUpdate });
+
+          io.to(`conv:${conversationId}`).emit('message:new', populated);
+          ack?.({ ok: true });
+
+          // Notify participants not actively viewing this conversation
+          const roomSockets = io.sockets.adapter.rooms.get(`conv:${conversationId}`) ?? new Set<string>();
+          const usersInRoom = new Set<string>();
+          for (const sid of roomSockets) {
+            const s = io.sockets.sockets.get(sid);
+            if (s) usersInRoom.add(s.data.userId as string);
+          }
+          const senderName = (populated.senderId as unknown as { name: string })?.name ?? 'Someone';
+          for (const pid of ids) {
+            if (pid !== userId && !usersInRoom.has(pid)) {
+              notifyNewMessage(pid, senderName, conversationId).catch(() => undefined);
+            }
+          }
+        } catch (err) {
+          logger.error('message:send error:', err);
+          ack?.({ ok: false, error: 'Failed to send message' });
         }
       }
     );

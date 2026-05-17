@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
-import { Send, Loader2, MessageSquare, Check, CheckCheck } from 'lucide-react';
+import { Send, Loader2, MessageSquare, Check, CheckCheck, WifiOff } from 'lucide-react';
+import toast from 'react-hot-toast';
 import { useAppSelector } from '../app/hooks';
 import {
   useGetConversationsQuery,
@@ -175,6 +176,7 @@ export default function Chat() {
   const [typingUsers, setTypingUsers] = useState<Set<string>>(new Set());
   const [onlineUsers, setOnlineUsers] = useState<string[]>([]);
   const [sending, setSending] = useState(false);
+  const [socketConnected, setSocketConnected] = useState(true);
   const typingTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
@@ -207,54 +209,80 @@ export default function Chat() {
     }
   }, [taskIdParam, conversations]);
 
-  // Load messages from REST when conversation changes
+  // Clear messages immediately when switching conversations so the previous
+  // conversation's messages never bleed into the next one while loading.
+  useEffect(() => {
+    setMessages([]);
+  }, [activeConvId]);
+
+  // Merge REST messages with socket-only messages for THIS conversation.
+  // Filters by conversationId so old messages can never survive a conversation switch.
   useEffect(() => {
     if (!msgData) return;
-    setMessages(msgData.messages);
+    setMessages((prev) => {
+      const restIds = new Set(msgData.messages.map((m) => m._id));
+      const socketOnly = prev.filter(
+        (m) => !restIds.has(m._id) && m.conversationId === activeConvId
+      );
+      return [...msgData.messages, ...socketOnly];
+    });
   }, [msgData]);
 
-  // Socket setup
+  // Socket setup — use named handler refs so cleanup only removes OUR listeners.
   useEffect(() => {
     const socket = getSocket();
+    setSocketConnected(socket.connected);
 
-    socket.on('online:list', (list: string[]) => setOnlineUsers(list));
-    socket.on('user:online', ({ userId }: { userId: string }) =>
-      setOnlineUsers((prev) => [...new Set([...prev, userId])])
-    );
-    socket.on('user:offline', ({ userId }: { userId: string }) =>
-      setOnlineUsers((prev) => prev.filter((id) => id !== userId))
-    );
-
-    socket.on('message:new', (msg: IMessage) => {
-      setMessages((prev) => {
-        if (prev.some((m) => m._id === msg._id)) return prev;
-        return [...prev, msg];
-      });
+    const onConnect    = () => setSocketConnected(true);
+    const onDisconnect = () => setSocketConnected(false);
+    const onOnlineList = (list: string[]) => setOnlineUsers(list);
+    const onUserOnline = ({ userId }: { userId: string }) =>
+      setOnlineUsers((prev) => [...new Set([...prev, userId])]);
+    const onUserOffline = ({ userId }: { userId: string }) =>
+      setOnlineUsers((prev) => prev.filter((id) => id !== userId));
+    const onMessageNew = (msg: IMessage) => {
+      if (msg.conversationId === activeConvId) {
+        setMessages((prev) => {
+          if (prev.some((m) => m._id === msg._id)) return prev;
+          return [...prev, msg];
+        });
+      }
       refetchConvs();
-    });
-
-    socket.on('typing:start', ({ userId: uid, conversationId: cid }: { userId: string; conversationId: string }) => {
+    };
+    const onTypingStart = ({ userId: uid, conversationId: cid }: { userId: string; conversationId: string }) => {
       if (cid === activeConvId) setTypingUsers((prev) => new Set([...prev, uid]));
-    });
-    socket.on('typing:stop', ({ userId: uid, conversationId: cid }: { userId: string; conversationId: string }) => {
+    };
+    const onTypingStop = ({ userId: uid, conversationId: cid }: { userId: string; conversationId: string }) => {
       if (cid === activeConvId) setTypingUsers((prev) => { const n = new Set(prev); n.delete(uid); return n; });
-    });
-    socket.on('messages:read', ({ conversationId: cid }: { conversationId: string }) => {
+    };
+    const onMessagesRead = ({ conversationId: cid }: { conversationId: string }) => {
       if (cid === activeConvId) {
         setMessages((prev) =>
           prev.map((m) => (m.readBy.includes(myId) ? m : { ...m, readBy: [...m.readBy, myId] }))
         );
       }
-    });
+    };
+
+    socket.on('connect',       onConnect);
+    socket.on('disconnect',    onDisconnect);
+    socket.on('online:list',   onOnlineList);
+    socket.on('user:online',   onUserOnline);
+    socket.on('user:offline',  onUserOffline);
+    socket.on('message:new',   onMessageNew);
+    socket.on('typing:start',  onTypingStart);
+    socket.on('typing:stop',   onTypingStop);
+    socket.on('messages:read', onMessagesRead);
 
     return () => {
-      socket.off('online:list');
-      socket.off('user:online');
-      socket.off('user:offline');
-      socket.off('message:new');
-      socket.off('typing:start');
-      socket.off('typing:stop');
-      socket.off('messages:read');
+      socket.off('connect',       onConnect);
+      socket.off('disconnect',    onDisconnect);
+      socket.off('online:list',   onOnlineList);
+      socket.off('user:online',   onUserOnline);
+      socket.off('user:offline',  onUserOffline);
+      socket.off('message:new',   onMessageNew);
+      socket.off('typing:start',  onTypingStart);
+      socket.off('typing:stop',   onTypingStop);
+      socket.off('messages:read', onMessagesRead);
     };
   }, [activeConvId, myId]);
 
@@ -273,13 +301,43 @@ export default function Chat() {
   }, [messages]);
 
   const handleSend = useCallback(() => {
-    if (!input.trim() || !activeConvId || sending) return;
+    const text = input.trim();
+    if (!text || !activeConvId || sending) return;
+
     const socket = getSocket();
+    if (!socket.connected) {
+      toast.error('Not connected — please wait and try again.');
+      return;
+    }
+
     setSending(true);
-    socket.emit('message:send', { conversationId: activeConvId, content: input.trim() });
     setInput('');
-    setSending(false);
     socket.emit('typing:stop', activeConvId);
+
+    // Manual timeout so `sending` can never be stuck permanently if ack never arrives.
+    let settled = false;
+    const timer = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      setSending(false);
+      setInput(text);
+      toast.error('Message timed out — please check your connection.');
+    }, 10000);
+
+    socket.emit(
+      'message:send',
+      { conversationId: activeConvId, content: text },
+      (res: { ok: boolean; error?: string }) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        setSending(false);
+        if (!res?.ok) {
+          setInput(text);
+          toast.error(res?.error ?? 'Message failed — please try again.');
+        }
+      }
+    );
   }, [input, activeConvId, sending]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -404,6 +462,12 @@ export default function Chat() {
 
               {/* Input */}
               <div className="bg-white border-t border-gray-200 px-4 py-3 flex-shrink-0">
+                {!socketConnected && (
+                  <div className="flex items-center gap-2 text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mb-2">
+                    <WifiOff className="w-3.5 h-3.5 flex-shrink-0" />
+                    <span>Reconnecting… messages will send once connected.</span>
+                  </div>
+                )}
                 <div className="flex items-end gap-3">
                   <textarea
                     value={input}
@@ -411,12 +475,13 @@ export default function Chat() {
                     onKeyDown={handleKeyDown}
                     placeholder="Type a message…"
                     rows={1}
-                    className="flex-1 resize-none border border-gray-300 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 max-h-32"
+                    disabled={!socketConnected}
+                    className="flex-1 resize-none border border-gray-300 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 max-h-32 disabled:bg-gray-50 disabled:text-gray-400"
                     style={{ minHeight: '44px' }}
                   />
                   <button
                     onClick={handleSend}
-                    disabled={!input.trim() || sending}
+                    disabled={!input.trim() || sending || !socketConnected}
                     className="flex items-center justify-center w-11 h-11 bg-primary-600 hover:bg-primary-700 disabled:opacity-40 text-white rounded-xl transition-colors flex-shrink-0"
                   >
                     {sending ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
